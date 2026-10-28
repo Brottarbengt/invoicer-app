@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
-              Ersätter den gamla Visma-mallen med automatisk beräkning, A4-anpassning & Swish QR
+              Ersätter den gamla Visma-mallen med automatisk beräkning, kundregister & A4-anpassning
             </p>
           </div>
         </div>

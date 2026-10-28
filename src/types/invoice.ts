@@ -24,10 +24,9 @@ export interface SenderInfo {
   vatNumber: string;
   bankgiro: string;
   plusgiro: string;
-  swish: string;
+  bankAccount: string; // t.ex. "Handelsbanken, Clearing 6123, Konto 123 456 789"
   iban: string;
   swiftBic: string;
-  bankAccount: string;
   taxStatus: string; // t.ex. "Godkänd för F-skatt"
   logoUrl: string;
   logoWidth: number;
@@ -44,6 +43,11 @@ export interface RecipientInfo {
   orgOrPersonNumber: string;
 }
 
+export interface SavedCustomer extends RecipientInfo {
+  id: string;
+  createdAt?: string;
+}
+
 export type ThemeType = 'modern' | 'clean' | 'classic' | 'minimal' | 'executive';
 
 export interface InvoiceDesign {
@@ -53,7 +57,6 @@ export interface InvoiceDesign {
   showArticleNumber: boolean;
   showUnit: boolean;
   showVatColumn: boolean;
-  showPaymentQr: boolean;
   compactMode: boolean;
 }
 
@@ -94,6 +97,20 @@ export interface InvoiceData {
   design: InvoiceDesign;
 }
 
+export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
+  {
+    id: 'cust-nils-01',
+    name: 'Nils Westergren',
+    company: '',
+    address: 'Blomstervägen 3',
+    zipAndCity: '821 40 Bollnäs',
+    customerNumber: '1',
+    email: '',
+    phone: '',
+    orgOrPersonNumber: '',
+  },
+];
+
 export const DEFAULT_SAMPLE_INVOICE: InvoiceData = {
   id: 'faktura-0120',
   title: 'FAKTURA',
@@ -122,10 +139,9 @@ export const DEFAULT_SAMPLE_INVOICE: InvoiceData = {
     vatNumber: 'SE841109751501',
     bankgiro: '5227-5153',
     plusgiro: '',
-    swish: '0730263294',
+    bankAccount: '',
     iban: '',
     swiftBic: '',
-    bankAccount: '',
     taxStatus: 'Godkänd för F-skatt',
     logoUrl: '/kws-bygg-logo.png',
     logoWidth: 160,
@@ -209,7 +225,6 @@ export const DEFAULT_SAMPLE_INVOICE: InvoiceData = {
     showArticleNumber: false,
     showUnit: true,
     showVatColumn: false,
-    showPaymentQr: true,
     compactMode: false,
   },
 };

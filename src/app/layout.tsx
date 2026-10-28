@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Svensk Fakturamall – Modern, A4-anpassad Fakturagenerator",
-  description: "Skapa, redigera och exportera professionella svenska fakturor med automatiska beräkningar, Swish QR-kod och A4-utskrift.",
+  description: "Skapa, redigera och exportera professionella svenska fakturor med automatiska beräkningar, kundregister och A4-utskrift.",
 };
 
 export default function RootLayout({

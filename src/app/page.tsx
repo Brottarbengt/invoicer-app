@@ -159,7 +159,7 @@ export default function Home() {
       <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white text-xs px-4 py-2 text-center font-medium shadow-xs no-print flex items-center justify-center gap-2">
         <Sparkles className="w-4 h-4 shrink-0 text-amber-200" />
         <span>
-          <strong>Ny modern fakturamall</strong> med automatiska uträkningar, A4-anpassning, obegränsat antal rader, Swish QR-kod och valfritt ROT-avdrag.
+          <strong>Ny modern fakturamall</strong> med automatiska uträkningar, A4-anpassning, obegränsat antal rader, kundregister och valfritt ROT-avdrag.
         </span>
       </div>
 

@@ -1,26 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
-import { InvoiceData, InvoiceItem, ItemType } from '@/types/invoice';
+import React, { useEffect, useState } from 'react';
+import { InvoiceData, InvoiceItem, ItemType, SavedCustomer } from '@/types/invoice';
 import { addDaysToDate, getTodayDateString } from '@/utils/calculations';
 import {
   Building2,
   Calendar,
+  Check,
+  CheckCircle2,
   CreditCard,
   FileText,
   Hammer,
-  HelpCircle,
   MoveDown,
   MoveUp,
   Palette,
   Plus,
-  RefreshCw,
   Save,
+  Search,
   Trash2,
   Upload,
   User,
+  UserCheck,
+  UserPlus,
+  Users,
 } from 'lucide-react';
-import { saveSenderProfile } from '@/utils/storage';
+import {
+  deleteSavedCustomer,
+  getSavedCustomers,
+  saveCustomer,
+  saveSenderProfile,
+} from '@/utils/storage';
 
 interface InvoiceEditorProps {
   invoice: InvoiceData;
@@ -35,6 +44,13 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'items' | 'details' | 'customer' | 'sender' | 'payment' | 'design'>('items');
   const [senderSavedToast, setSenderSavedToast] = useState(false);
+  const [customerSavedToast, setCustomerSavedToast] = useState(false);
+  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+
+  useEffect(() => {
+    setSavedCustomers(getSavedCustomers());
+  }, []);
 
   const updateField = <K extends keyof InvoiceData>(field: K, value: InvoiceData[K]) => {
     onChange({ ...invoice, [field]: value });
@@ -128,6 +144,52 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
     setTimeout(() => setSenderSavedToast(false), 3000);
   };
 
+  // Customer registry actions
+  const handleSaveCustomer = () => {
+    if (!invoice.recipient.name && !invoice.recipient.company) {
+      alert('Vänligen fyll i kundens namn eller företagsnamn innan du sparar.');
+      return;
+    }
+    const updatedList = saveCustomer(invoice.recipient);
+    setSavedCustomers(updatedList);
+    setCustomerSavedToast(true);
+    setTimeout(() => setCustomerSavedToast(false), 3000);
+  };
+
+  const handleSelectCustomer = (customer: SavedCustomer) => {
+    onChange({
+      ...invoice,
+      customerNumber: customer.customerNumber || invoice.customerNumber,
+      recipient: {
+        name: customer.name || '',
+        company: customer.company || '',
+        address: customer.address || '',
+        zipAndCity: customer.zipAndCity || '',
+        customerNumber: customer.customerNumber || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        orgOrPersonNumber: customer.orgOrPersonNumber || '',
+      },
+    });
+  };
+
+  const handleDeleteCustomer = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updatedList = deleteSavedCustomer(id);
+    setSavedCustomers(updatedList);
+  };
+
+  const filteredCustomers = savedCustomers.filter((c) => {
+    if (!customerSearch.trim()) return true;
+    const query = customerSearch.toLowerCase();
+    return (
+      (c.name && c.name.toLowerCase().includes(query)) ||
+      (c.company && c.company.toLowerCase().includes(query)) ||
+      (c.customerNumber && c.customerNumber.includes(query)) ||
+      (c.zipAndCity && c.zipAndCity.toLowerCase().includes(query))
+    );
+  });
+
   const colorPresets = [
     { name: "KW Bygg Röd", hex: "#dc2626" },
     { name: "Klassisk Blå", hex: "#2563eb" },
@@ -194,7 +256,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          Betalning & ROT
+          Betalsätt & ROT
         </button>
         <button
           onClick={() => setActiveTab('design')}
@@ -224,14 +286,14 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => addItem('item')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> Lägg till artikel
                 </button>
                 <button
                   type="button"
                   onClick={() => addItem('header')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> Lägg till rubrik
                 </button>
@@ -272,7 +334,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                         type="button"
                         onClick={() => moveItem(idx, 'up')}
                         disabled={idx === 0}
-                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 cursor-pointer"
                         title="Flytta upp"
                       >
                         <MoveUp className="w-3.5 h-3.5" />
@@ -281,7 +343,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                         type="button"
                         onClick={() => moveItem(idx, 'down')}
                         disabled={idx === invoice.items.length - 1}
-                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                        className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 cursor-pointer"
                         title="Flytta ned"
                       >
                         <MoveDown className="w-3.5 h-3.5" />
@@ -289,7 +351,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                       <button
                         type="button"
                         onClick={() => removeItem(idx)}
-                        className="p-1 text-red-500 hover:text-red-700"
+                        className="p-1 text-red-500 hover:text-red-700 cursor-pointer"
                         title="Ta bort"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -379,7 +441,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                             type="button"
                             onClick={() => moveItem(idx, 'up')}
                             disabled={idx === 0}
-                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 cursor-pointer"
                             title="Flytta upp"
                           >
                             <MoveUp className="w-3.5 h-3.5" />
@@ -388,7 +450,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                             type="button"
                             onClick={() => moveItem(idx, 'down')}
                             disabled={idx === invoice.items.length - 1}
-                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 cursor-pointer"
                             title="Flytta ned"
                           >
                             <MoveDown className="w-3.5 h-3.5" />
@@ -396,7 +458,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                           <button
                             type="button"
                             onClick={() => removeItem(idx)}
-                            className="p-1 text-red-500 hover:text-red-700"
+                            className="p-1 text-red-500 hover:text-red-700 cursor-pointer"
                             title="Ta bort rad"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -579,7 +641,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                     key={term.days}
                     type="button"
                     onClick={() => setQuickPaymentTerms(term.days, term.label)}
-                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors font-medium ${
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors font-medium cursor-pointer ${
                       invoice.paymentTerms === term.label
                         ? 'bg-red-600 text-white font-bold'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -675,117 +737,265 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
           </div>
         )}
 
-        {/* TAB 3: MOTTAGARE (KUND) */}
+        {/* TAB 3: MOTTAGARE (KUND) MED KUNDREGISTER */}
         {activeTab === 'customer' && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm">Kund & Fakturaadress</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kundnamn / Kontakt
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.name}
-                  onChange={(e) => updateRecipient('name', e.target.value)}
-                  placeholder="Nils Westergren"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium focus:outline-red-500"
-                />
+          <div className="space-y-5">
+            {/* Huvudruta: Kund & Fakturaadress */}
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Fakturamottagare (Kund)</h3>
+                  <p className="text-xs text-slate-500">
+                    Fyll i kunduppgifterna nedan för den aktuella fakturan.
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Företag / Organisation (om företagskund)
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.company}
-                  onChange={(e) => updateRecipient('company', e.target.value)}
-                  placeholder="Kundföretag AB"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kundnamn / Kontakt <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.name}
+                    onChange={(e) => updateRecipient('name', e.target.value)}
+                    placeholder="Nils Westergren"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium focus:outline-red-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Företag / Organisation (om företagskund)
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.company}
+                    onChange={(e) => updateRecipient('company', e.target.value)}
+                    placeholder="Kundföretag AB"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Faktureringsadress
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.address}
+                    onChange={(e) => updateRecipient('address', e.target.value)}
+                    placeholder="Blomstervägen 3"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Postnummer & Ort
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.zipAndCity}
+                    onChange={(e) => updateRecipient('zipAndCity', e.target.value)}
+                    placeholder="821 40 Bollnäs"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kundnummer
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.customerNumber}
+                    onChange={(e) => {
+                      updateField('customerNumber', e.target.value);
+                      updateRecipient('customerNumber', e.target.value);
+                    }}
+                    placeholder="1"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Org.nr eller Personnummer (vid t.ex. ROT)
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.orgOrPersonNumber}
+                    onChange={(e) => updateRecipient('orgOrPersonNumber', e.target.value)}
+                    placeholder="ÅÅMMDD-XXXX"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kundens e-post
+                  </label>
+                  <input
+                    type="email"
+                    value={invoice.recipient.email}
+                    onChange={(e) => updateRecipient('email', e.target.value)}
+                    placeholder="nils@example.se"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kundens telefon
+                  </label>
+                  <input
+                    type="text"
+                    value={invoice.recipient.phone}
+                    onChange={(e) => updateRecipient('phone', e.target.value)}
+                    placeholder="070-123 45 67"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500 bg-white"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Faktureringsadress
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.address}
-                  onChange={(e) => updateRecipient('address', e.target.value)}
-                  placeholder="Blomstervägen 3"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
+              {/* Knapp NERE TILL HÖGER i rutan som sparar mottagaren till listan under */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-200 mt-2">
+                <div className="text-xs">
+                  {customerSavedToast && (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 animate-fade-in">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      Kunden har sparats i listan nedan!
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveCustomer}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer"
+                  title="Spara uppgifterna i formuläret till kundlistan nedan"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Spara kund till lista</span>
+                </button>
+              </div>
+            </div>
+
+            {/* LISTA UNDER RUTAN: Sparade kunder (Kundregister) */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wide flex items-center gap-2">
+                      <span>Sparade kunder</span>
+                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-200">
+                        {savedCustomers.length}
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Klicka på en kund i listan så fylls uppgifterna i formuläret ovan automatiskt.
+                    </p>
+                  </div>
+                </div>
+
+                {savedCustomers.length > 2 && (
+                  <div className="relative w-52">
+                    <input
+                      type="text"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      placeholder="Sök kund eller ort..."
+                      className="w-full pl-7 pr-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-red-500"
+                    />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Postnummer & Ort
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.zipAndCity}
-                  onChange={(e) => updateRecipient('zipAndCity', e.target.value)}
-                  placeholder="821 40 Bollnäs"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
-              </div>
+              {filteredCustomers.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl">
+                  {savedCustomers.length === 0 ? (
+                    <div>
+                      Inga sparade kunder ännu. Fyll i kundens uppgifter i rutan ovan och klicka på{' '}
+                      <strong>&quot;Spara kund till lista&quot;</strong> nere till höger!
+                    </div>
+                  ) : (
+                    <div>Ingen kund matchar sökningen &quot;{customerSearch}&quot;.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  {filteredCustomers.map((cust) => {
+                    const isSelected =
+                      (cust.name && invoice.recipient.name === cust.name) ||
+                      (cust.company && invoice.recipient.company === cust.company);
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kundnummer
-                </label>
-                <input
-                  type="text"
-                  value={invoice.customerNumber}
-                  onChange={(e) => {
-                    updateField('customerNumber', e.target.value);
-                    updateRecipient('customerNumber', e.target.value);
-                  }}
-                  placeholder="1"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
-              </div>
+                    return (
+                      <div
+                        key={cust.id}
+                        onClick={() => handleSelectCustomer(cust)}
+                        className={`group relative p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-red-50/60 border-red-400 shadow-xs ring-1 ring-red-400/30'
+                            : 'bg-slate-50/50 hover:bg-slate-100/80 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-xs truncate">
+                                {cust.name || cust.company || 'Namnlös kund'}
+                              </span>
+                              {cust.customerNumber && (
+                                <span className="bg-slate-200 text-slate-700 text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold shrink-0">
+                                  #{cust.customerNumber}
+                                </span>
+                              )}
+                            </div>
+                            {cust.company && cust.name && (
+                              <div className="text-[11px] text-slate-600 truncate">{cust.company}</div>
+                            )}
+                            <div className="text-[11px] text-slate-500 mt-1 truncate">
+                              {cust.address ? `${cust.address}, ` : ''}
+                              {cust.zipAndCity || 'Ingen adress sparad'}
+                            </div>
+                            {(cust.phone || cust.email || cust.orgOrPersonNumber) && (
+                              <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                {cust.phone && <span className="mr-2">Tel: {cust.phone}</span>}
+                                {cust.orgOrPersonNumber && <span>{cust.orgOrPersonNumber}</span>}
+                              </div>
+                            )}
+                          </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Org.nr eller Personnummer (vid t.ex. ROT)
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.orgOrPersonNumber}
-                  onChange={(e) => updateRecipient('orgOrPersonNumber', e.target.value)}
-                  placeholder="ÅÅMMDD-XXXX"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kundens e-post
-                </label>
-                <input
-                  type="email"
-                  value={invoice.recipient.email}
-                  onChange={(e) => updateRecipient('email', e.target.value)}
-                  placeholder="nils@example.se"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kundens telefon
-                </label>
-                <input
-                  type="text"
-                  value={invoice.recipient.phone}
-                  onChange={(e) => updateRecipient('phone', e.target.value)}
-                  placeholder="070-123 45 67"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
-                />
-              </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold">
+                                <Check className="w-3 h-3" /> Vald
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-slate-400 group-hover:text-red-600 transition-colors">
+                                Välj
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteCustomer(cust.id, e)}
+                              title="Ta bort från kundlistan"
+                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -803,7 +1013,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
               <button
                 type="button"
                 onClick={handleSaveSender}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" /> Spara som min standardprofil
               </button>
@@ -851,7 +1061,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                     <button
                       type="button"
                       onClick={() => updateSender('logoUrl', '')}
-                      className="px-2.5 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium"
+                      className="px-2.5 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium cursor-pointer"
                     >
                       Ta bort logo
                     </button>
@@ -996,35 +1206,35 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
           </div>
         )}
 
-        {/* TAB 5: BETALNING, BANK & ROT */}
+        {/* TAB 5: BETALSÄTT, BANKKONTON & ROT */}
         {activeTab === 'payment' && (
           <div className="space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm">Betalsätt, Bankkonton & Skatteavdrag</h3>
+            <h3 className="font-bold text-slate-800 text-sm">Betalsätt till företagskonto & Skatteavdrag</h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Bankgiro
+                  Bankgiro <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={invoice.sender.bankgiro}
                   onChange={(e) => updateSender('bankgiro', e.target.value)}
                   placeholder="5227-5153"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-red-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-black text-slate-900 focus:outline-red-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Swish-nummer
+                  Företagskonto / Clearingnr
                 </label>
                 <input
                   type="text"
-                  value={invoice.sender.swish}
-                  onChange={(e) => updateSender('swish', e.target.value)}
-                  placeholder="0730263294"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-red-500"
+                  value={invoice.sender.bankAccount}
+                  onChange={(e) => updateSender('bankAccount', e.target.value)}
+                  placeholder="t.ex. Clearing 6123, Konto 123 456 789"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-red-500"
                 />
               </div>
 
@@ -1130,7 +1340,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                     key={c.hex}
                     type="button"
                     onClick={() => updateDesign('primaryColor', c.hex)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                       invoice.design.primaryColor === c.hex
                         ? 'border-slate-800 ring-2 ring-slate-800/20 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300'
@@ -1164,15 +1374,6 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
                 Synliga kolumner & element
               </span>
               <div className="space-y-2 text-xs text-slate-700">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={invoice.design.showPaymentQr}
-                    onChange={(e) => updateDesign('showPaymentQr', e.target.checked)}
-                    className="rounded text-red-600"
-                  />
-                  <span>Generera Swish QR-kod på fakturan</span>
-                </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"

@@ -1,43 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { InvoiceData } from '@/types/invoice';
-import { calculateInvoice, formatSEK, formatSEKWithCurrency } from '@/utils/calculations';
-import { generateSwishQrCode } from '@/utils/qrCode';
-import { CheckCircle2, QrCode } from 'lucide-react';
+import { calculateInvoice, formatSEK } from '@/utils/calculations';
+import { CheckCircle2, Landmark } from 'lucide-react';
 
 interface InvoicePreviewProps {
   invoice: InvoiceData;
   scale?: number;
 }
 
-export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, scale = 1 }) => {
-  const [swishQrDataUrl, setSwishQrDataUrl] = useState<string>('');
+export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
   const calc = calculateInvoice(invoice);
   const { design } = invoice;
-
-  useEffect(() => {
-    let isMounted = true;
-    if (invoice.design.showPaymentQr && invoice.sender.swish) {
-      const msg = invoice.invoiceNumber ? `Faktura ${invoice.invoiceNumber}` : 'Faktura';
-      generateSwishQrCode(invoice.sender.swish, calc.totalToPayAfterRot || calc.totalToPay, msg).then(
-        (url) => {
-          if (isMounted) setSwishQrDataUrl(url);
-        }
-      );
-    } else {
-      setSwishQrDataUrl('');
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    invoice.design.showPaymentQr,
-    invoice.sender.swish,
-    invoice.invoiceNumber,
-    calc.totalToPay,
-    calc.totalToPayAfterRot,
-  ]);
 
   const primaryColor = design.primaryColor || '#dc2626';
 
@@ -488,45 +463,46 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, scale =
 
       {/* FOOTER & PAYMENT DETAILS (Clean, professional Swedish layout) */}
       <div className="border-t-2 pt-4 mt-auto text-xs" style={{ borderColor: primaryColor }}>
-        <div className="grid grid-cols-12 gap-4 items-center">
+        <div className="grid grid-cols-12 gap-5 items-start">
           {/* Kolumn 1: Betalningsuppgifter */}
-          <div className="col-span-5 space-y-1">
-            <div className="text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-1">
+          <div className="col-span-5 space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Landmark className="w-3.5 h-3.5 text-slate-600" />
               Betalningsinformation
             </div>
             {invoice.sender.bankgiro && (
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-16">Bankgiro:</span>
-                <span className="font-bold text-slate-900">{invoice.sender.bankgiro}</span>
+                <span className="text-slate-500 w-20">Bankgiro:</span>
+                <span className="font-black text-slate-900 text-sm tracking-wide">{invoice.sender.bankgiro}</span>
+              </div>
+            )}
+            {invoice.sender.bankAccount && (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 w-20">Bankkonto:</span>
+                <span className="font-semibold text-slate-900">{invoice.sender.bankAccount}</span>
               </div>
             )}
             {invoice.sender.plusgiro && (
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-16">Plusgiro:</span>
+                <span className="text-slate-500 w-20">Plusgiro:</span>
                 <span className="font-semibold text-slate-800">{invoice.sender.plusgiro}</span>
               </div>
             )}
-            {invoice.sender.swish && (
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 w-16">Swish:</span>
-                <span className="font-bold text-slate-900">{invoice.sender.swish}</span>
-              </div>
-            )}
             <div className="flex items-center gap-2 text-[11px]">
-              <span className="text-slate-500 w-16">OCR/Ref:</span>
-              <span className="font-bold text-slate-900">
+              <span className="text-slate-500 w-20">OCR / Ref:</span>
+              <span className="font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                 {invoice.invoiceNumber || 'Fakturanummer'}
               </span>
             </div>
             {invoice.sender.iban && (
-              <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                <span className="w-16">IBAN:</span>
+              <div className="flex items-center gap-2 text-[10px] text-slate-600 pt-0.5">
+                <span className="w-20">IBAN:</span>
                 <span className="font-mono">{invoice.sender.iban}</span>
               </div>
             )}
             {invoice.sender.swiftBic && (
               <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                <span className="w-16">SWIFT/BIC:</span>
+                <span className="w-20">SWIFT/BIC:</span>
                 <span className="font-mono">{invoice.sender.swiftBic}</span>
               </div>
             )}
@@ -549,34 +525,22 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, scale =
             {invoice.sender.phone && <div>Tel: {invoice.sender.phone}</div>}
             
             {/* F-skatt badge */}
-            <div className="pt-1 flex items-center gap-1.5 text-emerald-800 font-bold text-[11px]">
+            <div className="pt-1.5 flex items-center gap-1.5 text-emerald-800 font-bold text-[11px]">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>{invoice.sender.taxStatus || 'Godkänd för F-skatt'}</span>
             </div>
           </div>
 
-          {/* Kolumn 3: Swish QR-kod eller Tack-meddelande */}
-          <div className="col-span-3 flex flex-col items-center justify-center text-center pl-2 border-l border-slate-200">
-            {invoice.design.showPaymentQr && swishQrDataUrl ? (
-              <div className="flex flex-col items-center">
-                <div className="bg-white p-1 rounded border border-slate-200 shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={swishQrDataUrl}
-                    alt="Swish QR"
-                    className="w-16 h-16 object-contain"
-                  />
-                </div>
-                <span className="text-[10px] font-bold text-slate-700 mt-1 flex items-center gap-1">
-                  <QrCode className="w-3 h-3 text-slate-500" /> Betala med Swish
-                </span>
-                <span className="text-[9px] text-slate-400">{invoice.sender.swish}</span>
-              </div>
-            ) : (
-              <div className="text-slate-400 text-[11px] italic">
-                Tack för förtroendet och gott samarbete!
-              </div>
-            )}
+          {/* Kolumn 3: Betalningsnotis & Tack */}
+          <div className="col-span-3 flex flex-col justify-between text-left pl-3 border-l border-slate-200 min-h-[90px]">
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-[10px] text-slate-600 leading-tight space-y-1">
+              <div className="font-bold text-slate-700 uppercase tracking-wider text-[9px]">Betalningsvillkor</div>
+              <div>Inbetalning till företagets bankgiro/konto senast <strong>{invoice.dueDate || 'förfallodagen'}</strong>.</div>
+              <div className="text-slate-500">Ange fakturanr som meddelande.</div>
+            </div>
+            <div className="text-slate-500 text-[10px] italic pt-1">
+              Tack för förtroendet och gott samarbete!
+            </div>
           </div>
         </div>
       </div>
