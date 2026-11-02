@@ -1,23 +1,15 @@
-import { DEFAULT_SAMPLE_CUSTOMERS, DEFAULT_SAMPLE_INVOICE, InvoiceData, RecipientInfo, SavedCustomer, SenderInfo } from '@/types/invoice';
+import { DEFAULT_SAMPLE_CUSTOMERS, DEFAULT_SAMPLE_INVOICE, InvoiceData, RecipientInfo, SavedCustomer, SenderInfo, createEmptyInvoice } from '@/types/invoice';
 
 const STORAGE_KEYS = {
-  CURRENT_INVOICE: 'faktura_current_data',
+  CURRENT_INVOICE: 'faktura_current_data_v3',
   SAVED_INVOICES: 'faktura_saved_list',
   SAVED_SENDER: 'faktura_saved_sender',
-  SAVED_CUSTOMERS: 'faktura_saved_customers',
+  SAVED_CUSTOMERS: 'faktura_saved_customers_v3',
 };
 
 export function loadCurrentInvoice(): InvoiceData {
-  if (typeof window === 'undefined') return DEFAULT_SAMPLE_INVOICE;
-  try {
-    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_INVOICE);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (err) {
-    console.warn('Failed to load current invoice from storage', err);
-  }
-  return DEFAULT_SAMPLE_INVOICE;
+  // Always start with a fresh, empty invoice as requested
+  return createEmptyInvoice('0121');
 }
 
 export function saveCurrentInvoice(invoice: InvoiceData): void {
@@ -97,7 +89,15 @@ export function getSavedCustomers(): SavedCustomer[] {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Strip any old project names and ensure unique numbers
+        return parsed.map((c: SavedCustomer) => {
+          if (c.name && c.name.toLowerCase().includes('lars persson') && c.customerNumber === '52') {
+            c.customerNumber = '53';
+          }
+          delete c.propertyDesignation;
+          delete c.notes;
+          return c;
+        });
       }
     }
   } catch (err) {
@@ -106,11 +106,10 @@ export function getSavedCustomers(): SavedCustomer[] {
   return DEFAULT_SAMPLE_CUSTOMERS;
 }
 
-export function saveCustomer(recipient: RecipientInfo): SavedCustomer[] {
+export function saveCustomer(recipient: RecipientInfo, notes?: string): SavedCustomer[] {
   if (typeof window === 'undefined') return [];
   try {
     const list = getSavedCustomers();
-    // Check if customer already exists (match by name or customerNumber)
     const existingIndex = list.findIndex(
       (c) =>
         (recipient.name && c.name.trim().toLowerCase() === recipient.name.trim().toLowerCase()) ||
@@ -122,6 +121,9 @@ export function saveCustomer(recipient: RecipientInfo): SavedCustomer[] {
       id: existingIndex >= 0 ? list[existingIndex].id : `cust-${Date.now()}`,
       createdAt: existingIndex >= 0 ? list[existingIndex].createdAt : new Date().toISOString(),
     };
+    // Ensure no project names are stored in customer profiles
+    delete newCustomer.propertyDesignation;
+    delete newCustomer.notes;
 
     if (existingIndex >= 0) {
       list[existingIndex] = newCustomer;

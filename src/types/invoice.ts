@@ -5,6 +5,7 @@ export interface InvoiceItem {
   type: ItemType;
   articleNumber?: string;
   description: string;
+  subDescription?: string;
   quantity: number | null;
   unit: string;
   unitPrice: number | null;
@@ -24,10 +25,10 @@ export interface SenderInfo {
   vatNumber: string;
   bankgiro: string;
   plusgiro: string;
-  bankAccount: string; // t.ex. "Handelsbanken, Clearing 6123, Konto 123 456 789"
+  bankAccount: string;
   iban: string;
   swiftBic: string;
-  taxStatus: string; // t.ex. "Godkänd för F-skatt"
+  taxStatus: string;
   logoUrl: string;
   logoWidth: number;
 }
@@ -41,11 +42,13 @@ export interface RecipientInfo {
   email: string;
   phone: string;
   orgOrPersonNumber: string;
+  propertyDesignation?: string; // t.ex. "ÖSTBY 8:46"
 }
 
 export interface SavedCustomer extends RecipientInfo {
   id: string;
   createdAt?: string;
+  notes?: string;
 }
 
 export type ThemeType = 'modern' | 'clean' | 'classic' | 'minimal' | 'executive';
@@ -62,12 +65,12 @@ export interface InvoiceDesign {
 
 export interface InvoiceData {
   id: string;
-  title: string; // t.ex. "FAKTURA", "KREDITFAKTURA", "OFFERT"
+  title: string;
   invoiceNumber: string;
   invoiceDate: string; // YYYY-MM-DD
   dueDate: string; // YYYY-MM-DD
-  paymentTerms: string; // t.ex. "15 dagar netto"
-  latePaymentInterest: string; // t.ex. "8%"
+  paymentTerms: string;
+  latePaymentInterest: string;
   deliveryTerms: string;
   deliveryMethod: string;
   ourReference: string;
@@ -75,6 +78,9 @@ export interface InvoiceData {
   customerNumber: string;
   orderNumber: string;
   currency: string;
+  
+  projectTitle?: string; // t.ex. "Dörrbyte"
+  projectDates?: string; // t.ex. "Utförda 2026-11-02 • ÖSTBY 8:46"
   
   sender: SenderInfo;
   recipient: RecipientInfo;
@@ -86,10 +92,10 @@ export interface InvoiceData {
   discountType: 'amount' | 'percent';
   discountValue: number;
   
-  enableRounding: boolean; // Öresutjämning
+  enableRounding: boolean;
   enableRot: boolean;
   rotPercent: number; // standard 30%
-  enableReverseVat: boolean; // Omvänd byggmoms
+  enableReverseVat: boolean;
   
   notes: string;
   paymentNotice: string;
@@ -99,132 +105,190 @@ export interface InvoiceData {
 
 export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
   {
+    id: 'cust-jerry-61',
+    name: 'Jerry van Kooten',
+    company: '',
+    address: 'Kolforsen 39',
+    zipAndCity: '816 93 Ockelbo',
+    customerNumber: '61',
+    email: 'jerry@jvkooten.info',
+    phone: '',
+    orgOrPersonNumber: '19700526-1578',
+  },
+  {
+    id: 'cust-andreas-60',
+    name: 'Andreas Modig',
+    company: '',
+    address: 'Moravägen 6',
+    zipAndCity: '821 41 Bollnäs',
+    customerNumber: '60',
+    email: 'fakturor7959@gmail.com',
+    phone: '070-632 59 56',
+    orgOrPersonNumber: '',
+  },
+  {
     id: 'cust-nils-01',
     name: 'Nils Westergren',
-    company: '',
+    company: 'Annefors Snickeri & Bygg AB',
     address: 'Blomstervägen 3',
     zipAndCity: '821 40 Bollnäs',
     customerNumber: '1',
+    email: 'Nils_westergren@hotmail.com',
+    phone: '070-653 43 14',
+    orgOrPersonNumber: '559055-5974',
+  },
+  {
+    id: 'cust-erik-52',
+    name: 'Erik Beijer',
+    company: '',
+    address: 'Brånanvägen 18',
+    zipAndCity: '821 34 Bollnäs',
+    customerNumber: '52',
     email: '',
     phone: '',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-lars-53',
+    name: 'Lars Persson',
+    company: '',
+    address: 'Villavägen 2',
+    zipAndCity: '703 85 Glanshammar',
+    customerNumber: '53',
+    email: '',
+    phone: '070-590 83 04',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-johan-18',
+    name: 'Johan Köck',
+    company: '',
+    address: 'Herte 8642',
+    zipAndCity: '821 92 Bollnäs',
+    customerNumber: '18',
+    email: '',
+    phone: '070-373 34 47',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-ida-15',
+    name: 'Ida Söderqvist & Svante',
+    company: '',
+    address: 'Lillebovägen 12',
+    zipAndCity: '191 44 Sollentuna',
+    customerNumber: '15',
+    email: '',
+    phone: '',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-tolino-24',
+    name: 'Tolino trädgård AB',
+    company: 'Tolino trädgård AB',
+    address: 'Säbyvikskullen 1',
+    zipAndCity: '179 96 Svartsjö',
+    customerNumber: '24',
+    email: '',
+    phone: '070-239 55 90',
+    orgOrPersonNumber: '556987-1234',
+  },
+  {
+    id: 'cust-madde-34',
+    name: 'Madeleine Helin',
+    company: '',
+    address: 'Lingonvägen 20',
+    zipAndCity: '821 35 Bollnäs',
+    customerNumber: '34',
+    email: '',
+    phone: '070-679 02 18',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-kenneth-26',
+    name: 'Kenneth Andersson',
+    company: '',
+    address: 'Norrbågen 41B',
+    zipAndCity: '806 34 Gävle',
+    customerNumber: '26',
+    email: '',
+    phone: '076-803 38 24',
     orgOrPersonNumber: '',
   },
 ];
 
-export const DEFAULT_SAMPLE_INVOICE: InvoiceData = {
-  id: 'faktura-0120',
-  title: 'FAKTURA',
-  invoiceNumber: '0120',
-  invoiceDate: '2026-10-12',
-  dueDate: '2026-10-27',
-  paymentTerms: '15 dagar netto',
-  latePaymentInterest: '8%',
-  deliveryTerms: '',
-  deliveryMethod: '',
-  ourReference: 'Karl',
-  yourReference: 'Nils',
-  customerNumber: '1',
-  orderNumber: '',
-  currency: 'SEK',
-  
-  sender: {
-    name: 'Karl Westergren',
-    company: "KW's BYGG",
-    address: 'Moravägen 6',
-    zipAndCity: '821 41 Bollnäs',
-    phone: '0730-26 32 94',
-    email: 'Karlvestergren@gmail.com',
-    website: '',
-    orgNumber: '841109-7515',
-    vatNumber: 'SE841109751501',
-    bankgiro: '5227-5153',
-    plusgiro: '',
-    bankAccount: '',
-    iban: '',
-    swiftBic: '',
-    taxStatus: 'Godkänd för F-skatt',
-    logoUrl: '/kws-bygg-logo.png',
-    logoWidth: 160,
-  },
-  
-  recipient: {
-    name: 'Nils Westergren',
-    company: '',
-    address: 'Blomstervägen 3',
-    zipAndCity: '821 40 Bollnäs',
-    customerNumber: '1',
-    email: '',
-    phone: '',
-    orgOrPersonNumber: '',
-  },
-  
-  items: [
-    {
-      id: 'row-1',
-      type: 'header',
-      articleNumber: '',
-      description: 'Snickeritjänster Oktober - 2026',
-      quantity: null,
-      unit: '',
-      unitPrice: null,
-      vatRate: 25,
-      isRotRut: false,
+export function createEmptyInvoice(invoiceNumber: string = '0121'): InvoiceData {
+  const today = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const dueDate = d.toISOString().split('T')[0];
+
+  return {
+    id: `faktura-ny-${Date.now()}`,
+    title: 'FAKTURA',
+    invoiceNumber,
+    invoiceDate: today,
+    dueDate,
+    paymentTerms: '14 dagar netto',
+    latePaymentInterest: '8%',
+    deliveryTerms: '',
+    deliveryMethod: '',
+    ourReference: 'Karl',
+    yourReference: '',
+    customerNumber: '',
+    orderNumber: '',
+    currency: 'SEK',
+    projectTitle: '',
+    projectDates: `Utförda ${today}`,
+    sender: {
+      name: 'Karl Westergren',
+      company: "KW's BYGG",
+      address: 'Moravägen 6',
+      zipAndCity: '821 41 Bollnäs',
+      phone: '073-026 32 94',
+      email: 'Karlvestergren@gmail.com',
+      website: '',
+      orgNumber: '841109-7515',
+      vatNumber: 'SE841109751501',
+      bankgiro: '5227-5153',
+      plusgiro: '',
+      bankAccount: '',
+      iban: '',
+      swiftBic: '',
+      taxStatus: 'Godkänd för F-skatt',
+      logoUrl: '/kws-bygg-logo.png',
+      logoWidth: 160,
     },
-    {
-      id: 'row-2',
-      type: 'item',
-      articleNumber: '',
-      description: 'Timmar',
-      quantity: 14,
-      unit: 'h',
-      unitPrice: 500,
-      vatRate: 25,
-      isRotRut: true,
+    recipient: {
+      name: '',
+      company: '',
+      address: '',
+      zipAndCity: '',
+      customerNumber: '',
+      email: '',
+      phone: '',
+      orgOrPersonNumber: '',
     },
-    {
-      id: 'row-3',
-      type: 'item',
-      articleNumber: '',
-      description: 'Beijer bygg (Material)',
-      quantity: 1,
-      unit: 'st',
-      unitPrice: 1200,
-      vatRate: 25,
-      isRotRut: false,
+    items: [],
+    shipping: 0,
+    adminFee: 0,
+    discountType: 'amount',
+    discountValue: 0,
+    enableRounding: true,
+    enableRot: false,
+    rotPercent: 30,
+    enableReverseVat: false,
+    notes: 'Tack för uppdraget!',
+    paymentNotice: '',
+    design: {
+      theme: 'modern',
+      primaryColor: '#dc2626',
+      fontFamily: 'sans',
+      showArticleNumber: false,
+      showUnit: true,
+      showVatColumn: false,
+      compactMode: false,
     },
-    {
-      id: 'row-4',
-      type: 'item',
-      articleNumber: '',
-      description: 'Servicebil',
-      quantity: 1,
-      unit: 'st',
-      unitPrice: 200,
-      vatRate: 25,
-      isRotRut: false,
-    },
-  ],
-  
-  shipping: 0,
-  adminFee: 0,
-  discountType: 'amount',
-  discountValue: 0,
-  
-  enableRounding: true,
-  enableRot: false,
-  rotPercent: 30,
-  enableReverseVat: false,
-  
-  notes: 'Tack för uppdraget!',
-  paymentNotice: 'Var vänlig ange fakturanummer 0120 som referens vid betalning.',
-  
-  design: {
-    theme: 'modern',
-    primaryColor: '#dc2626', // KW's Bygg röd accent
-    fontFamily: 'sans',
-    showArticleNumber: false,
-    showUnit: true,
-    showVatColumn: false,
-    compactMode: false,
-  },
-};
+  };
+}
+
+export const DEFAULT_SAMPLE_INVOICE: InvoiceData = createEmptyInvoice('0121');
