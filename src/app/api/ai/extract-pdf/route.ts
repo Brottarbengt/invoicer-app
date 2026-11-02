@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { getSessionUser } from '@/lib/auth';
 
 const execFileAsync = promisify(execFile);
 const PYTHON_PATH = 'C:\\Users\\karlv\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe';
 
 export async function POST(req: NextRequest) {
   try {
+    const token = req.cookies.get('invoicer_session')?.value;
+    const session = getSessionUser(token);
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Ej auktoriserad' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
 

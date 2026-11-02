@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InvoiceData, InvoiceItem } from '@/types/invoice';
+import { getSessionUser } from '@/lib/auth';
 
 interface ChatHistoryItem {
   role: 'user' | 'assistant';
@@ -84,6 +85,16 @@ Svara ENDAST med ett giltigt JSON-objekt:
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   try {
+    const token = req.cookies.get('invoicer_session')?.value;
+    const session = getSessionUser(token);
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Inloggning krävs för att använda AI-assistenten.' },
+        { status: 401 }
+      );
+    }
+
     const body: ParseRequest = await req.json();
     const { prompt, currentInvoice, attachedText, history = [], model = 'qwen2.5:7b' } = body;
 

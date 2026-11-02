@@ -50,6 +50,15 @@ Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (samt mobilanp
   * `[Faktura A4]` – Granska fakturan och ladda ner PDF.
 * **Fjärråtkomst:** Servern lyssnar på `0.0.0.0:3000` vilket gör att du kan nå appen direkt från mobilen via lokalt Wi-Fi eller via **Tailscale** när du är ute på byggen.
 
+### 5. 🔒 Serverlagring i SQLite & Multi-User med PIN
+* **Permanent datalagring (SQLite):** Kunder, fakturahistorik och företagsprofiler sparas i en lokal SQLite-databas (`data/invoicer.db`) på din dators hårddisk. Data försvinner aldrig vid rensning av webbläsarens cache, och synkas sömlöst mellan dator och mobil!
+* **Multi-User med PIN-lås:**
+  * Mobilanpassad numerisk knappsats med 4–6 siffrig PIN-kod (standard-PIN för Karl: `1234`).
+  * Säker session som sparas i 30 dagar på dina betrodda enheter.
+  * Behörighetsskydd på alla AI- och databas-API:er för att förhindra obehörig åtkomst eller resurskapning av grafikkortet.
+* **BankID-förberedd arkitektur:** Databasen och användarmodellen är förberedda med fält för personnummer (`personNumber`), vilket gör att BankID-inloggning kan kopplas på sömlöst i framtiden.
+* **Stöd för flera användare:** Möjlighet att lägga till nya hantverkarprofiler (t.ex. kollegor) med egna PIN-koder, företagsuppgifter och kundregister.
+
 ---
 
 ## 🛠️ Teknisk arkitektur
@@ -60,10 +69,11 @@ Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (samt mobilanp
 | **Språk** | **TypeScript 5** | Strikt typning för alla fakturamodeller och beräkningar |
 | **Styling** | **Tailwind CSS 4** | Responsiv layout, utility-first styling, print-stilar |
 | **Ikoner** | **Lucide React** | Moderna och enhetliga gränssnittsikoner |
+| **Lokal Databas** | **SQLite (node:sqlite)** | Snabb och driftsäker lokal relationsdatabas (`data/invoicer.db`) |
+| **Autentisering** | **Multi-User PIN & Sessions** | SHA-256 hashade PIN-koder, 30 dagars HTTP-only cookies |
 | **Lokal AI Engine** | **Ollama** | Kör `qwen2.5:7b` (Q4_K_M) lokalt via REST API (`/api/generate`) |
-| **PDF-extraktion** | **PyMuPDF (fitz)** | Snabb och robust textextraktion ur uppladdade fakturaundelag |
+| **PDF-extraktion** | **PyMuPDF (fitz)** | Snabb och robust textextraktion ur uppladdade fakturaunderlag |
 | **PDF-export** | **jsPDF / html2canvas** | Direkt nedladdning av A4-PDF i webbläsaren |
-| **Datalagring** | **Web Storage (localStorage)** | Lokal synkning av kundregister, fakturahistorik och inställningar |
 
 ---
 

@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DEFAULT_SAMPLE_INVOICE, InvoiceData, RecipientInfo, SavedCustomer, createEmptyInvoice } from '@/types/invoice';
 import { CustomerSidebar } from '@/components/CustomerSidebar';
 import { AiAssistant } from '@/components/AiAssistant';
 import { InvoicePreview } from '@/components/InvoicePreview';
 import { Header } from '@/components/Header';
 import { SavedInvoicesModal } from '@/components/SavedInvoicesModal';
+import { PinLoginModal } from '@/components/PinLoginModal';
 import {
   getSavedCustomers,
   getSavedInvoicesList,
   incrementInvoiceNumber,
-  loadCurrentInvoice,
-  loadSavedSender,
   saveCurrentInvoice,
   saveCustomer,
   deleteSavedCustomer,
@@ -22,7 +21,21 @@ import { downloadPdfDirectly, printInvoice } from '@/utils/pdfExport';
 import { addDaysToDate, getTodayDateString } from '@/utils/calculations';
 import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
+interface AuthUser {
+  userId: string;
+  name: string;
+  email?: string;
+  personNumber?: string;
+  senderProfile: any;
+}
+
 export default function Home() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+
+  // Invoice & Customer state
   const [invoice, setInvoice] = useState<InvoiceData>(DEFAULT_SAMPLE_INVOICE);
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
@@ -39,17 +52,72 @@ export default function Home() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Load initial data on mount - starts completely empty as requested
-  useEffect(() => {
-    const empty = createEmptyInvoice('0121');
-    const savedSender = loadSavedSender();
-    if (savedSender) {
-      empty.sender = savedSender;
+  // Fetch customers from server SQLite database
+  const refreshCustomers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/customers');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.customers)) {
+          setCustomers(data.customers);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load customers from server, using local fallback', e);
     }
-    setInvoice(empty);
-    setSelectedCustomerId(undefined);
     setCustomers(getSavedCustomers());
+  }, []);
+
+  // Fetch invoices from server SQLite database
+  const refreshInvoices = useCallback(async () => {
+    try {
+      const res = await fetch('/api/invoices');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.invoices)) {
+          setSavedInvoices(data.invoices);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load invoices from server, using local fallback', e);
+    }
     setSavedInvoices(getSavedInvoicesList());
+  }, []);
+
+  // Initialize and check session
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+
+        setAvailableUsers(data.availableUsers || []);
+
+        if (data.authenticated && data.user) {
+          setIsAuthenticated(true);
+          setCurrentUser(data.user);
+
+          // Prepare clean initial invoice with logged in user's profile
+          const empty = createEmptyInvoice('0121');
+          if (data.user.senderProfile) {
+            empty.sender = { ...empty.sender, ...data.user.senderProfile };
+          }
+          setInvoice(empty);
+
+          // Load data from server DB
+          await refreshCustomers();
+          await refreshInvoices();
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+
+    initAuth();
 
     if (typeof window !== 'undefined') {
       if (window.innerWidth < 1440 && window.innerWidth >= 1024) {
@@ -58,7 +126,34 @@ export default function Home() {
         setPreviewZoom(0.78);
       }
     }
-  }, []);
+  }, [refreshCustomers, refreshInvoices]);
+
+  const handleLoginSuccess = async (user: AuthUser) => {
+    setIsAuthenticated(true);
+    setCurrentUser(user);
+
+    const empty = createEmptyInvoice('0121');
+    if (user.senderProfile) {
+      empty.sender = { ...empty.sender, ...user.senderProfile };
+    }
+    setInvoice(empty);
+    setSelectedCustomerId(undefined);
+
+    await refreshCustomers();
+    await refreshInvoices();
+    showToast(`Välkommen, ${user.name}!`);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error(e);
+    }
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    showToast('Du har loggats ut', 'info');
+  };
 
   const handleInvoiceChange = (updated: InvoiceData) => {
     setInvoice(updated);
@@ -93,15 +188,45 @@ export default function Home() {
     }
   };
 
-  // Save new or edited customer
-  const handleSaveCustomer = (recipient: RecipientInfo, notes?: string) => {
+  // Save new or edited customer directly to SQLite on server
+  const handleSaveCustomer = async (recipient: RecipientInfo, notes?: string) => {
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recipient),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.customers)) {
+        setCustomers(data.customers);
+        showToast(`Kunden ${recipient.name} har sparats i databasen!`);
+        return;
+      }
+    } catch (err) {
+      console.warn('Server save failed, using local fallback', err);
+    }
+
     const updatedList = saveCustomer(recipient, notes);
     setCustomers(updatedList);
-    showToast(`Kunden ${recipient.name} har sparats!`);
+    showToast(`Kunden ${recipient.name} sparades lokalt`);
   };
 
-  // Delete customer
-  const handleDeleteCustomer = (id: string) => {
+  // Delete customer directly in SQLite
+  const handleDeleteCustomer = async (id: string) => {
+    try {
+      const res = await fetch(`/api/customers?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.customers)) {
+        setCustomers(data.customers);
+        showToast('Kund borttagen från databasen', 'info');
+        return;
+      }
+    } catch (err) {
+      console.warn('Server delete failed, using local fallback', err);
+    }
+
     const updatedList = deleteSavedCustomer(id);
     setCustomers(updatedList);
     showToast('Kund borttagen', 'info');
@@ -161,9 +286,8 @@ export default function Home() {
   // Reset invoice - completely clear
   const handleResetInvoice = () => {
     const empty = createEmptyInvoice(invoice.invoiceNumber || '0121');
-    const savedSender = loadSavedSender();
-    if (savedSender) {
-      empty.sender = savedSender;
+    if (currentUser?.senderProfile) {
+      empty.sender = { ...empty.sender, ...currentUser.senderProfile };
     }
     setInvoice(empty);
     setSelectedCustomerId(undefined);
@@ -174,9 +298,8 @@ export default function Home() {
   const handleNextInvoice = () => {
     const nextNumber = incrementInvoiceNumber(invoice.invoiceNumber || '0121');
     const empty = createEmptyInvoice(nextNumber);
-    const savedSender = loadSavedSender();
-    if (savedSender) {
-      empty.sender = savedSender;
+    if (currentUser?.senderProfile) {
+      empty.sender = { ...empty.sender, ...currentUser.senderProfile };
     }
     setInvoice(empty);
     setSelectedCustomerId(undefined);
@@ -190,7 +313,7 @@ export default function Home() {
   const handleDownloadPdf = async () => {
     setIsDownloadingPdf(true);
     const cleanCustomerName = (invoice.recipient.name || 'Kund').replace(/[^a-zA-Z0-9åäöÅÄÖ_-]/g, '_');
-    const filename = `Faktura_${invoice.invoiceNumber || '6101'}_${cleanCustomerName}.pdf`;
+    const filename = `Faktura_${invoice.invoiceNumber || '0121'}_${cleanCustomerName}.pdf`;
 
     showToast('Genererar skarp PDF...', 'info');
     const success = await downloadPdfDirectly('invoice-sheet', filename);
@@ -200,13 +323,45 @@ export default function Home() {
     }
   };
 
-  const handleSaveInvoice = () => {
+  // Save invoice directly to SQLite DB on server
+  const handleSaveInvoice = async () => {
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoice),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshInvoices();
+        showToast(`Faktura #${invoice.invoiceNumber || 'utkast'} sparades i databasen!`);
+        return;
+      }
+    } catch (err) {
+      console.warn('Server save invoice failed, using local fallback', err);
+    }
+
     saveInvoiceToList(invoice);
     setSavedInvoices(getSavedInvoicesList());
     showToast(`Faktura #${invoice.invoiceNumber || 'utkast'} sparades i arkivet!`);
   };
 
-  const handleDeleteSavedInvoice = (id: string) => {
+  // Delete invoice in SQLite DB
+  const handleDeleteSavedInvoice = async (id: string) => {
+    try {
+      const res = await fetch(`/api/invoices?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshInvoices();
+        showToast('Faktura raderad från databasen', 'info');
+        return;
+      }
+    } catch (err) {
+      console.warn('Server delete invoice failed, using local fallback', err);
+    }
+
     const filtered = savedInvoices.filter((i) => i.id !== id);
     setSavedInvoices(filtered);
     if (typeof window !== 'undefined') {
@@ -225,10 +380,18 @@ export default function Home() {
         </div>
       )}
 
+      {/* PIN Login Screen when not logged in */}
+      {isAuthenticated === false && (
+        <PinLoginModal availableUsers={availableUsers} onLoginSuccess={handleLoginSuccess} />
+      )}
+
       {/* Main Responsive Header */}
       <Header
         invoiceNumber={invoice.invoiceNumber}
         recipientName={invoice.recipient.name}
+        userName={currentUser?.name}
+        companyName={currentUser?.senderProfile?.company}
+        onLogout={handleLogout}
         onPrint={handlePrint}
         onDownloadPdf={handleDownloadPdf}
         onNextInvoice={handleNextInvoice}
@@ -244,7 +407,7 @@ export default function Home() {
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-slate-200 text-xs px-4 py-1.5 text-center font-medium shadow-xs no-print flex items-center justify-center gap-2 border-b border-slate-700/60">
         <Sparkles className="w-3.5 h-3.5 text-red-400 shrink-0" />
         <span>
-          <strong>Lokal AI-fakturering:</strong> Välj kund till vänster, klistra in underlag i AI-rutan och se A4-fakturan räknas ut direkt med ROT & moms.
+          <strong>Lokal AI-fakturering med SQLite:</strong> All data synkas permanent till din dator. Välj kund till vänster, klistra in underlag i AI-rutan och se A4-fakturan räknas ut direkt.
         </span>
       </div>
 
@@ -367,17 +530,17 @@ export default function Home() {
                       type="text"
                       value={invoice.projectTitle || ''}
                       onChange={(e) => handleInvoiceChange({ ...invoice, projectTitle: e.target.value })}
-                      placeholder="t.ex. Dörrbyte"
+                      placeholder="t.ex. Kaminmontering"
                       className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="text-[10.5px] font-semibold text-slate-600">Projektperiod / Fastighet:</label>
+                    <label className="text-[10.5px] font-semibold text-slate-600">Projektperiod / Datum:</label>
                     <input
                       type="text"
                       value={invoice.projectDates || ''}
                       onChange={(e) => handleInvoiceChange({ ...invoice, projectDates: e.target.value })}
-                      placeholder="t.ex. Utförda 2026-11-02 • ÖSTBY 8:46"
+                      placeholder="t.ex. Utförda 2026-11-02"
                       className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                     />
                   </div>

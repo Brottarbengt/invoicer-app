@@ -15,6 +15,9 @@ import {
 interface HeaderProps {
   invoiceNumber: string;
   recipientName: string;
+  userName?: string;
+  companyName?: string;
+  onLogout?: () => void;
   onPrint: () => void;
   onDownloadPdf: () => void;
   onNextInvoice: () => void;
@@ -29,6 +32,9 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   invoiceNumber,
   recipientName,
+  userName,
+  companyName,
+  onLogout,
   onPrint,
   onDownloadPdf,
   onNextInvoice,
@@ -112,6 +118,19 @@ export const Header: React.FC<HeaderProps> = ({
             <Printer className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Skriv ut / Spara</span>
           </button>
+
+          {userName && onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              title={`Inloggad som ${userName}. Klicka för att byta användare eller logga ut.`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition-colors cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="hidden xl:inline">{userName}</span>
+              <span className="text-[10px] text-slate-400">(Logga ut)</span>
+            </button>
+          )}
         </div>
       </div>
 

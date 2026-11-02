@@ -43,3 +43,9 @@ next-env.d.ts
 # temp uploads
 uploads/*.png
 
+# local sqlite database & files
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
