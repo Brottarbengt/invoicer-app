@@ -4,29 +4,14 @@ Ett modernt, intelligent och lokalt faktureringssystem framtaget för **KW's Byg
 
 ---
 
-## 📸 Skärmdumpar & Översikt
+## 📸 Skärmdump & Översikt
 
-Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (eller mobilanpassad flikmeny):
+![KW's Bygg Fakturering](public/app-screenshot.png)
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  KW's Bygg Fakturering  #6101                      [+] Ny faktura   [Spara]   [Arkiv]   [Ladda ner PDF]│
-├─────────────────────────┬──────────────────────────────────┬───────────────────────────────────────────┤
-│ KUNDREGISTER (Vänster)  │ AI-ASSISTENT (Mitten - Cursor)   │ A4 LIVE FAKTURA (Höger)                   │
-│ 🔍 Sök i realtid...     │ 💬 Chatthistorik                 │ 🟢 Realtidsvisning   [ROT 30%] [Justera]  │
-│ ─────────────────────── │ ┌──────────────────────────────┐ │ ┌───────────────────────────────────────┐ │
-│ • Jerry van Kooten (#61)│ │ "Tolkade underlaget:         │ │ │ KW's Bygg               FAKTURA       │ │
-│   Kolforsen 39, Ockelbo │ │  5 h Karl, 5 h Nils, mil,    │ │ │                          Nr #6101     │ │
-│ • Andreas Modig (#60)   │ │  mat, 30% ROT aktiverat"     │ │ │ Mottagare:           Projekt:         │ │
-│   Moravägen 6, Bollnäs  │ └──────────────────────────────┘ │ │ Jerry van Kooten       Dörrbyte       │ │
-│ • Nils Westergren (#1)  │ ┌──────────────────────────────┐ │ │ Kolforsen 39, Ockelbo  Utförda 2026.. │ │
-│   Annefors Snickeri     │ │ Klistra in underlag här...   │ │ │ • Arbetstimmar (Karl) 5 h  2 750 kr   │ │
-│ • Erik Beijer (#52)     │ │ [📎 Bifoga PDF] [Generera ✨]│ │ │ • Snickartimmar (Nils) 5 h 2 750 kr   │ │
-│ • Lars Persson (#53)    │ └──────────────────────────────┘ │ │ • Milersättning & Mat      570 kr     │ │
-│ • [+ Ny kund]           │ [Kaminmontering] [+Servicebil]   │ │ • ROT-avdrag (-30%)     -1 650 kr     │ │
-│                         │ [✓] ROT-faktura (30% avdrag)     │ │ ATT BETALA:             5 525,00 kr   │ │
-└─────────────────────────┴──────────────────────────────────┴─┴───────────────────────────────────────┴─┘
-```
+Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (samt mobilanpassad flikmeny):
+- **Vänster:** Kundregister med blixtsnabb realtidssökning och rena kontaktkort.
+- **Mitten:** AI-assistent i Cursor-stil (driven av lokal Ollama) för inmatning av timmar, bifogade underlag och ändringar.
+- **Höger:** Interaktiv A4-faktura med realtidsberäkning, ROT-avdrag och skarp PDF-export.
 
 ---
 
