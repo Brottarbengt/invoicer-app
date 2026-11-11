@@ -8,6 +8,7 @@ import { InvoicePreview } from '@/components/InvoicePreview';
 import { Header } from '@/components/Header';
 import { SavedInvoicesModal } from '@/components/SavedInvoicesModal';
 import { PinLoginModal } from '@/components/PinLoginModal';
+import { RotExportModal } from '@/components/RotExportModal';
 import {
   getSavedCustomers,
   getSavedInvoicesList,
@@ -19,7 +20,7 @@ import {
 } from '@/utils/storage';
 import { downloadPdfDirectly, printInvoice } from '@/utils/pdfExport';
 import { addDaysToDate, getTodayDateString } from '@/utils/calculations';
-import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp, FileCode2 } from 'lucide-react';
 
 interface AuthUser {
   userId: string;
@@ -41,6 +42,7 @@ export default function Home() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
   const [savedInvoices, setSavedInvoices] = useState<InvoiceData[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [isRotModalOpen, setIsRotModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'customers' | 'assistant' | 'preview'>('assistant');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'info' } | null>(null);
@@ -391,6 +393,8 @@ export default function Home() {
         recipientName={invoice.recipient.name}
         userName={currentUser?.name}
         companyName={currentUser?.senderProfile?.company}
+        isRotEnabled={invoice.enableRot}
+        onOpenRotModal={() => setIsRotModalOpen(true)}
         onLogout={handleLogout}
         onPrint={handlePrint}
         onDownloadPdf={handleDownloadPdf}
@@ -459,7 +463,7 @@ export default function Home() {
                 </span>
               </span>
 
-              {/* ROT Toggle, Zoom & Quick manual toggle */}
+              {/* ROT Toggle, ROT File Export, Zoom & Quick manual toggle */}
               <div className="flex items-center gap-2">
                 <label
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer select-none ${
@@ -477,6 +481,18 @@ export default function Home() {
                   />
                   <span>ROT (30%)</span>
                 </label>
+
+                {invoice.enableRot && (
+                  <button
+                    type="button"
+                    onClick={() => setIsRotModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-600 shadow-xs transition-all cursor-pointer animate-in fade-in"
+                    title="Skapa Skatteverket XML för denna ROT-faktura"
+                  >
+                    <FileCode2 className="w-3 h-3 text-emerald-200" />
+                    <span>ROT på fil</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -615,6 +631,15 @@ export default function Home() {
           showToast(`Laddade faktura #${selected.invoiceNumber || 'utkast'}`);
         }}
         onDeleteInvoice={handleDeleteSavedInvoice}
+      />
+
+      {/* Skatteverket ROT XML Export Modal */}
+      <RotExportModal
+        isOpen={isRotModalOpen}
+        onClose={() => setIsRotModalOpen(false)}
+        invoice={invoice}
+        onUpdateInvoice={(updated) => handleInvoiceChange(updated)}
+        onSuccessToast={(msg) => showToast(msg, 'success')}
       />
     </div>
   );

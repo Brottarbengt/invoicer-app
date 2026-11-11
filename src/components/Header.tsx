@@ -10,6 +10,7 @@ import {
   Users,
   Sparkles,
   FileCheck2,
+  FileCode2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,6 +18,8 @@ interface HeaderProps {
   recipientName: string;
   userName?: string;
   companyName?: string;
+  isRotEnabled?: boolean;
+  onOpenRotModal?: () => void;
   onLogout?: () => void;
   onPrint: () => void;
   onDownloadPdf: () => void;
@@ -34,6 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   recipientName,
   userName,
   companyName,
+  isRotEnabled,
+  onOpenRotModal,
   onLogout,
   onPrint,
   onDownloadPdf,
@@ -99,6 +104,18 @@ export const Header: React.FC<HeaderProps> = ({
             <FolderOpen className="w-3.5 h-3.5 text-purple-400" />
             <span className="hidden md:inline">Arkiv ({savedCount})</span>
           </button>
+
+          {isRotEnabled && onOpenRotModal && (
+            <button
+              type="button"
+              onClick={onOpenRotModal}
+              title="Exportera godkänd XML-fil för ROT-utbetalning hos Skatteverket"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs border border-emerald-600 cursor-pointer animate-in fade-in"
+            >
+              <FileCode2 className="w-3.5 h-3.5 text-emerald-200" />
+              <span>ROT på fil</span>
+            </button>
+          )}
 
           <button
             type="button"

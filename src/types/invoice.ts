@@ -33,6 +33,25 @@ export interface SenderInfo {
   logoWidth: number;
 }
 
+export type RotWorkCategory =
+  | 'Bygg'
+  | 'El'
+  | 'GlasPlatarbete'
+  | 'MarkDraneringarbete'
+  | 'Murning'
+  | 'MalningTapetsering'
+  | 'Vvs';
+
+export const ROT_WORK_CATEGORY_LABELS: Record<RotWorkCategory, string> = {
+  Bygg: 'Bygg (snickeri, reparation, ombyggnad)',
+  El: 'El (elinstallation, reparation)',
+  GlasPlatarbete: 'Glas & Plåtarbete',
+  MarkDraneringarbete: 'Mark & Dräneringsarbete',
+  Murning: 'Murning & Putsning',
+  MalningTapetsering: 'Målning & Tapetsering',
+  Vvs: 'VVS (rörarbete, värme, sanitet)',
+};
+
 export interface RecipientInfo {
   name: string;
   company: string;
@@ -42,7 +61,10 @@ export interface RecipientInfo {
   email: string;
   phone: string;
   orgOrPersonNumber: string;
-  propertyDesignation?: string; // t.ex. "ÖSTBY 8:46"
+  housingType?: 'property' | 'coop'; // 'property' för Småhus, 'coop' för Bostadsrätt
+  propertyDesignation?: string; // t.ex. "ÖSTBY 8:46" (Småhus)
+  apartmentNumber?: string; // t.ex. "1201" (Bostadsrätt)
+  brfOrgNumber?: string; // 10 eller 12 siffror (Bostadsrätt)
 }
 
 export interface SavedCustomer extends RecipientInfo {
@@ -81,6 +103,8 @@ export interface InvoiceData {
   
   projectTitle?: string; // t.ex. "Dörrbyte"
   projectDates?: string; // t.ex. "Utförda 2026-11-02 • ÖSTBY 8:46"
+  rotWorkCategory?: RotWorkCategory; // Standard: 'Bygg'
+  paymentDate?: string; // Format YYYY-MM-DD för ROT-ansökan
   
   sender: SenderInfo;
   recipient: RecipientInfo;
