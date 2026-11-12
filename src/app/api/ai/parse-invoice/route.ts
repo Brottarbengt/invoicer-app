@@ -58,12 +58,18 @@ VIKTIGA REGLER FÖR ÄNDRINGAR OCH RADER:
    - Sätt isRotRut: true BARA på godkända arbetstimmar/snickeri.
    - Sätt ALLTID isRotRut: false på material, servicebil, frakt och milersättning.
 
-8. SVENSK SAMMANFATTNING (summaryMessage):
+8. FAKTURANUMMER:
+   - Om användaren ber om att ändra fakturanummer / OCR / referens: sätt "invoiceNumber" till det nya numret (endast siffror, t.ex. "6002").
+   - Om användaren INTE nämner fakturanummer: sätt "invoiceNumber" till null (behåll befintligt).
+   - Ändra ALDRIG fakturanummer på eget bevåg.
+
+9. SVENSK SAMMANFATTNING (summaryMessage):
    - Skriv ALLTID en naturlig, trevlig svensk sammanfattning med dina egna ord om vad du precis ändrade eller skapade på fakturan. Kopiera aldrig instruktionstext eller malltext!
 
 Svara ENDAST med ett giltigt JSON-objekt:
 {
   "customerName": "Kundens namn om det nämns, annars null",
+  "invoiceNumber": "Nytt fakturanummer om användaren begär det, annars null",
   "projectTitle": "Projektnamnet",
   "projectDates": "Tidsperiod eller datum om känt, annars null",
   "enableRot": true,
@@ -118,6 +124,8 @@ export async function POST(req: NextRequest) {
 
 BEFINTLIG FAKTURASTATUS:
 - Kund: ${currentRecipientSummary(currentInvoice)}
+- Nuvarande fakturanummer / OCR: ${currentInvoice.invoiceNumber || '(ej angett)'}
+- Nuvarande kundnummer: ${currentInvoice.customerNumber || currentInvoice.recipient?.customerNumber || '(ej angett)'}
 - Nuvarande projektnamn: ${currentInvoice.projectTitle || '(ej angett)'}
 - Nuvarande ROT-status: ${currentInvoice.enableRot ? `Ja (${currentInvoice.rotPercent || 30}%)` : 'Nej'}
 - Befintliga rader på fakturan:
@@ -192,6 +200,11 @@ ${prompt}
         .replace(/\s*[-•,]?\s*Fastighet:.*$/i, '')
         .trim();
 
+      const rawInvoiceNumber =
+        ollamaResponse.invoiceNumber !== null && ollamaResponse.invoiceNumber !== undefined
+          ? String(ollamaResponse.invoiceNumber).replace(/\D/g, '')
+          : '';
+
       return NextResponse.json({
         success: true,
         source: 'ollama',
@@ -199,6 +212,7 @@ ${prompt}
         durationMs,
         data: {
           ...ollamaResponse,
+          invoiceNumber: rawInvoiceNumber || null,
           projectDates: cleanProjectDates || null,
           items: sanitizedItems,
         },
@@ -349,13 +363,26 @@ function smartSwedishInvoiceParser(prompt: string, attachedText: string | undefi
 
   const enableRot = p.includes('rot') || currentInvoice.enableRot;
 
+  // Invoice number change: "ändra till 6002", "fakturanummer 6002", "OCR 6002"
+  let invoiceNumber: string | null = null;
+  const invoiceNumberMatch =
+    prompt.match(
+      /(?:fakturanummer|faktura\s*nr\.?|faktura\s*nummer|ocr\s*\/?\s*referens|ocr|referens)[^\d]{0,20}(\d{3,})/i
+    ) || prompt.match(/(?:ändra|sätt|byt).*?(?:till|=)\s*(\d{3,})/i);
+  if (invoiceNumberMatch) {
+    invoiceNumber = invoiceNumberMatch[1];
+  }
+
   return {
     customerName,
+    invoiceNumber,
     projectTitle,
     projectDates: currentInvoice.projectDates || `Utförda ${new Date().toISOString().split('T')[0]}`,
     enableRot,
     rotPercent: 30,
     items,
-    summaryMessage: `Uppdaterade fakturan: ${items.length} poster finns nu på fakturan.`,
+    summaryMessage: invoiceNumber
+      ? `Uppdaterade fakturanummer till ${invoiceNumber}. ${items.length} poster finns nu på fakturan.`
+      : `Uppdaterade fakturan: ${items.length} poster finns nu på fakturan.`,
   };
 }

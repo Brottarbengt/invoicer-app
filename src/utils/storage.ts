@@ -9,7 +9,7 @@ const STORAGE_KEYS = {
 
 export function loadCurrentInvoice(): InvoiceData {
   // Always start with a fresh, empty invoice as requested
-  return createEmptyInvoice('0121');
+  return createEmptyInvoice('6001');
 }
 
 export function saveCurrentInvoice(invoice: InvoiceData): void {

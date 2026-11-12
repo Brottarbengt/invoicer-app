@@ -12,7 +12,6 @@ import { RotExportModal } from '@/components/RotExportModal';
 import {
   getSavedCustomers,
   getSavedInvoicesList,
-  incrementInvoiceNumber,
   saveCurrentInvoice,
   saveCustomer,
   deleteSavedCustomer,
@@ -88,6 +87,23 @@ export default function Home() {
     setSavedInvoices(getSavedInvoicesList());
   }, []);
 
+  const fetchNextInvoiceNumber = useCallback(
+    async (customerNumber?: string, excludeInvoiceId?: string) => {
+      try {
+        const params = new URLSearchParams({ type: 'invoice' });
+        if (customerNumber) params.set('customerNumber', customerNumber);
+        if (excludeInvoiceId) params.set('excludeInvoiceId', excludeInvoiceId);
+        const res = await fetch(`/api/numbers/next?${params.toString()}`);
+        const data = await res.json();
+        if (data.success && data.number) return String(data.number);
+      } catch (err) {
+        console.warn('Could not fetch next invoice number', err);
+      }
+      return customerNumber ? `${customerNumber}01` : '6001';
+    },
+    []
+  );
+
   // Initialize and check session
   useEffect(() => {
     const initAuth = async () => {
@@ -101,8 +117,9 @@ export default function Home() {
           setIsAuthenticated(true);
           setCurrentUser(data.user);
 
-          // Prepare clean initial invoice with logged in user's profile
-          const empty = createEmptyInvoice('0121');
+          // Prepare clean initial invoice with next free invoice number
+          const nextNumber = await fetchNextInvoiceNumber();
+          const empty = createEmptyInvoice(nextNumber);
           if (data.user.senderProfile) {
             empty.sender = { ...empty.sender, ...data.user.senderProfile };
           }
@@ -128,13 +145,14 @@ export default function Home() {
         setPreviewZoom(0.78);
       }
     }
-  }, [refreshCustomers, refreshInvoices]);
+  }, [refreshCustomers, refreshInvoices, fetchNextInvoiceNumber]);
 
   const handleLoginSuccess = async (user: AuthUser) => {
     setIsAuthenticated(true);
     setCurrentUser(user);
 
-    const empty = createEmptyInvoice('0121');
+    const nextNumber = await fetchNextInvoiceNumber();
+    const empty = createEmptyInvoice(nextNumber);
     if (user.senderProfile) {
       empty.sender = { ...empty.sender, ...user.senderProfile };
     }
@@ -163,10 +181,24 @@ export default function Home() {
   };
 
   // Select customer from sidebar
-  const handleSelectCustomer = (customer: SavedCustomer) => {
+  const handleSelectCustomer = async (customer: SavedCustomer) => {
     setSelectedCustomerId(customer.id);
+
+    const currentNum = (invoice.invoiceNumber || '').trim();
+    const looksUnassigned =
+      !currentNum ||
+      currentNum === '0121' ||
+      currentNum === '6101' ||
+      !currentNum.startsWith(customer.customerNumber || '___');
+
+    let invoiceNumber = invoice.invoiceNumber;
+    if (looksUnassigned && customer.customerNumber) {
+      invoiceNumber = await fetchNextInvoiceNumber(customer.customerNumber, invoice.id);
+    }
+
     const updated: InvoiceData = {
       ...invoice,
+      invoiceNumber,
       customerNumber: customer.customerNumber || invoice.customerNumber,
       yourReference: customer.name.split(' ')[0] || invoice.yourReference,
       recipient: {
@@ -178,11 +210,14 @@ export default function Home() {
         email: customer.email || '',
         phone: customer.phone || '',
         orgOrPersonNumber: customer.orgOrPersonNumber || '',
-        propertyDesignation: '',
+        propertyDesignation: customer.propertyDesignation || '',
+        housingType: customer.housingType,
+        apartmentNumber: customer.apartmentNumber,
+        brfOrgNumber: customer.brfOrgNumber,
       },
     };
     handleInvoiceChange(updated);
-    showToast(`Kunden ${customer.name} har valts!`);
+    showToast(`Kunden ${customer.name} har valts (#${invoiceNumber})`);
 
     // On mobile, automatically advance to assistant view
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -191,7 +226,7 @@ export default function Home() {
   };
 
   // Save new or edited customer directly to SQLite on server
-  const handleSaveCustomer = async (recipient: RecipientInfo, notes?: string) => {
+  const handleSaveCustomer = async (recipient: RecipientInfo & { id?: string }, notes?: string) => {
     try {
       const res = await fetch('/api/customers', {
         method: 'POST',
@@ -202,6 +237,10 @@ export default function Home() {
       if (data.success && Array.isArray(data.customers)) {
         setCustomers(data.customers);
         showToast(`Kunden ${recipient.name} har sparats i databasen!`);
+        return;
+      }
+      if (res.status === 409 || data.error) {
+        showToast(data.error || 'Kundnummer krockar med befintlig kund', 'info');
         return;
       }
     } catch (err) {
@@ -261,14 +300,23 @@ export default function Home() {
           email: match.email || '',
           phone: match.phone || '',
           orgOrPersonNumber: match.orgOrPersonNumber || '',
-          propertyDesignation: '',
+          propertyDesignation: match.propertyDesignation || '',
+          housingType: match.housingType,
+          apartmentNumber: match.apartmentNumber,
+          brfOrgNumber: match.brfOrgNumber,
         };
       }
     }
 
+    const nextInvoiceNumber =
+      data.invoiceNumber && String(data.invoiceNumber).trim()
+        ? String(data.invoiceNumber).replace(/\D/g, '')
+        : invoice.invoiceNumber;
+
     const updated: InvoiceData = {
       ...invoice,
       ...data,
+      invoiceNumber: nextInvoiceNumber,
       customerNumber: newCustomerNumber,
       yourReference: newYourRef,
       recipient: newRecipient,
@@ -277,7 +325,11 @@ export default function Home() {
       items: data.items && data.items.length > 0 ? data.items : invoice.items,
     };
     handleInvoiceChange(updated);
-    showToast('Fakturan uppdaterades av AI:n!');
+    showToast(
+      data.invoiceNumber
+        ? `Fakturanummer uppdaterat till #${nextInvoiceNumber}`
+        : 'Fakturan uppdaterades av AI:n!'
+    );
 
     // On mobile, show preview tab to see results
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -285,9 +337,9 @@ export default function Home() {
     }
   };
 
-  // Reset invoice - completely clear
+  // Reset invoice - completely clear but keep allocated number
   const handleResetInvoice = () => {
-    const empty = createEmptyInvoice(invoice.invoiceNumber || '0121');
+    const empty = createEmptyInvoice(invoice.invoiceNumber || '');
     if (currentUser?.senderProfile) {
       empty.sender = { ...empty.sender, ...currentUser.senderProfile };
     }
@@ -296,9 +348,29 @@ export default function Home() {
     showToast('Fakturan tömdes helt', 'info');
   };
 
-  // Next invoice (+1) - starts clean with incremented invoice number
-  const handleNextInvoice = () => {
-    const nextNumber = incrementInvoiceNumber(invoice.invoiceNumber || '0121');
+  // Next invoice - persist current draft then allocate a unique number from DB
+  const handleNextInvoice = async () => {
+    const hasContent =
+      Boolean(invoice.recipient?.name?.trim()) ||
+      (invoice.items && invoice.items.length > 0) ||
+      Boolean(invoice.projectTitle?.trim());
+
+    if (hasContent && invoice.invoiceNumber?.trim()) {
+      try {
+        await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invoice),
+        });
+        await refreshInvoices();
+      } catch (err) {
+        console.warn('Auto-save before next invoice failed', err);
+      }
+    }
+
+    const nextNumber = await fetchNextInvoiceNumber(
+      invoice.customerNumber || invoice.recipient?.customerNumber || undefined
+    );
     const empty = createEmptyInvoice(nextNumber);
     if (currentUser?.senderProfile) {
       empty.sender = { ...empty.sender, ...currentUser.senderProfile };
@@ -314,12 +386,22 @@ export default function Home() {
 
   const handleDownloadPdf = async () => {
     setIsDownloadingPdf(true);
+    const previousTab = mobileTab;
+    // Ensure the A4 preview is mounted/visible before html2canvas runs
+    if (mobileTab !== 'preview') {
+      setMobileTab('preview');
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+
     const cleanCustomerName = (invoice.recipient.name || 'Kund').replace(/[^a-zA-Z0-9åäöÅÄÖ_-]/g, '_');
     const filename = `Faktura_${invoice.invoiceNumber || '0121'}_${cleanCustomerName}.pdf`;
 
     showToast('Genererar skarp PDF...', 'info');
     const success = await downloadPdfDirectly('invoice-sheet', filename);
     setIsDownloadingPdf(false);
+    if (previousTab !== 'preview') {
+      setMobileTab(previousTab);
+    }
     if (success) {
       showToast(`PDF sparad: ${filename}`);
     }
@@ -327,6 +409,11 @@ export default function Home() {
 
   // Save invoice directly to SQLite DB on server
   const handleSaveInvoice = async () => {
+    if (!invoice.invoiceNumber?.trim()) {
+      showToast('Ange ett fakturanummer innan du sparar', 'info');
+      return;
+    }
+
     try {
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -336,7 +423,11 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         await refreshInvoices();
-        showToast(`Faktura #${invoice.invoiceNumber || 'utkast'} sparades i databasen!`);
+        showToast(`Faktura #${invoice.invoiceNumber} sparades i databasen!`);
+        return;
+      }
+      if (res.status === 409 || data.error) {
+        showToast(data.error || 'Fakturanummer krockar med befintlig faktura', 'info');
         return;
       }
     } catch (err) {
@@ -345,7 +436,7 @@ export default function Home() {
 
     saveInvoiceToList(invoice);
     setSavedInvoices(getSavedInvoicesList());
-    showToast(`Faktura #${invoice.invoiceNumber || 'utkast'} sparades i arkivet!`);
+    showToast(`Faktura #${invoice.invoiceNumber} sparades i arkivet!`);
   };
 
   // Delete invoice in SQLite DB
@@ -539,7 +630,22 @@ export default function Home() {
                   <span>Snabbjustera fakturauppgifter</span>
                   <span className="text-[10px] text-slate-400 font-normal">Ändras live på fakturan</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10.5px] font-semibold text-slate-600">Fakturanummer / OCR:</label>
+                    <input
+                      type="text"
+                      value={invoice.invoiceNumber || ''}
+                      onChange={(e) =>
+                        handleInvoiceChange({
+                          ...invoice,
+                          invoiceNumber: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                      placeholder="t.ex. 6002"
+                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white font-mono"
+                    />
+                  </div>
                   <div>
                     <label className="text-[10.5px] font-semibold text-slate-600">Projektnamn:</label>
                     <input

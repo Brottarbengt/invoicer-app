@@ -129,6 +129,19 @@ export interface InvoiceData {
 
 export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
   {
+    id: 'cust-andreas-60',
+    name: 'Andreas Modig',
+    company: '',
+    address: 'Annefors 7951',
+    zipAndCity: '821 92 Bollnäs',
+    customerNumber: '60',
+    email: 'fakturor7959@gmail.com',
+    phone: '070-632 59 56',
+    orgOrPersonNumber: '',
+    propertyDesignation: 'Annefors 1:1',
+    housingType: 'property',
+  },
+  {
     id: 'cust-jerry-61',
     name: 'Jerry van Kooten',
     company: '',
@@ -138,17 +151,8 @@ export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
     email: 'jerry@jvkooten.info',
     phone: '',
     orgOrPersonNumber: '19700526-1578',
-  },
-  {
-    id: 'cust-andreas-60',
-    name: 'Andreas Modig',
-    company: '',
-    address: 'Moravägen 6',
-    zipAndCity: '821 41 Bollnäs',
-    customerNumber: '60',
-    email: 'fakturor7959@gmail.com',
-    phone: '070-632 59 56',
-    orgOrPersonNumber: '',
+    propertyDesignation: 'ÖSTBY 8:46',
+    housingType: 'property',
   },
   {
     id: 'cust-nils-01',
@@ -162,39 +166,6 @@ export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
     orgOrPersonNumber: '559055-5974',
   },
   {
-    id: 'cust-erik-52',
-    name: 'Erik Beijer',
-    company: '',
-    address: 'Brånanvägen 18',
-    zipAndCity: '821 34 Bollnäs',
-    customerNumber: '52',
-    email: '',
-    phone: '',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-lars-53',
-    name: 'Lars Persson',
-    company: '',
-    address: 'Villavägen 2',
-    zipAndCity: '703 85 Glanshammar',
-    customerNumber: '53',
-    email: '',
-    phone: '070-590 83 04',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-johan-18',
-    name: 'Johan Köck',
-    company: '',
-    address: 'Herte 8642',
-    zipAndCity: '821 92 Bollnäs',
-    customerNumber: '18',
-    email: '',
-    phone: '070-373 34 47',
-    orgOrPersonNumber: '',
-  },
-  {
     id: 'cust-ida-15',
     name: 'Ida Söderqvist & Svante',
     company: '',
@@ -206,6 +177,17 @@ export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
     orgOrPersonNumber: '',
   },
   {
+    id: 'cust-johan-18',
+    name: 'Johan Käck',
+    company: '',
+    address: 'Herte 8642',
+    zipAndCity: '821 92 Bollnäs',
+    customerNumber: '18',
+    email: '',
+    phone: '070-373 34 47',
+    orgOrPersonNumber: '',
+  },
+  {
     id: 'cust-tolino-24',
     name: 'Tolino trädgård AB',
     company: 'Tolino trädgård AB',
@@ -214,33 +196,33 @@ export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
     customerNumber: '24',
     email: '',
     phone: '070-239 55 90',
-    orgOrPersonNumber: '556987-1234',
-  },
-  {
-    id: 'cust-madde-34',
-    name: 'Madeleine Helin',
-    company: '',
-    address: 'Lingonvägen 20',
-    zipAndCity: '821 35 Bollnäs',
-    customerNumber: '34',
-    email: '',
-    phone: '070-679 02 18',
     orgOrPersonNumber: '',
   },
   {
-    id: 'cust-kenneth-26',
-    name: 'Kenneth Andersson',
+    id: 'cust-lars-52',
+    name: 'Lars Persson',
     company: '',
-    address: 'Norrbågen 41B',
-    zipAndCity: '806 34 Gävle',
-    customerNumber: '26',
+    address: 'Villavägen 2',
+    zipAndCity: '703 85 Glanshammar',
+    customerNumber: '52',
     email: '',
-    phone: '076-803 38 24',
+    phone: '070-590 83 04',
+    orgOrPersonNumber: '',
+  },
+  {
+    id: 'cust-erik-90',
+    name: 'Erik Beijer',
+    company: '',
+    address: 'Brånanvägen 18',
+    zipAndCity: '821 34 Bollnäs',
+    customerNumber: '90',
+    email: '',
+    phone: '',
     orgOrPersonNumber: '',
   },
 ];
 
-export function createEmptyInvoice(invoiceNumber: string = '0121'): InvoiceData {
+export function createEmptyInvoice(invoiceNumber: string = ''): InvoiceData {
   const today = new Date().toISOString().split('T')[0];
   const d = new Date();
   d.setDate(d.getDate() + 14);
@@ -315,4 +297,4 @@ export function createEmptyInvoice(invoiceNumber: string = '0121'): InvoiceData 
   };
 }
 
-export const DEFAULT_SAMPLE_INVOICE: InvoiceData = createEmptyInvoice('0121');
+export const DEFAULT_SAMPLE_INVOICE: InvoiceData = createEmptyInvoice('6001');

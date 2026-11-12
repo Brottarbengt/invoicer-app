@@ -28,20 +28,37 @@ body {
     min-height: 297mm !important;
   }
 
+  /* Hide everything except the invoice sheet */
+  body * {
+    visibility: hidden !important;
+  }
+
   .no-print {
     display: none !important;
   }
 
+  #invoice-sheet,
+  #invoice-sheet * {
+    visibility: visible !important;
+  }
+
   #invoice-sheet {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     box-shadow: none !important;
     border: none !important;
     margin: 0 !important;
+    transform: none !important;
     width: 210mm !important;
     min-height: 297mm !important;
+    max-height: none !important;
+    height: auto !important;
     padding: 14mm 16mm 14mm 16mm !important;
     background: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    overflow: visible !important;
   }
 
   /* Prevent page break inside key elements */

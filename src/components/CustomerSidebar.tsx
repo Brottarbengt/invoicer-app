@@ -22,7 +22,7 @@ interface CustomerSidebarProps {
   selectedCustomerId?: string;
   currentRecipient: RecipientInfo;
   onSelectCustomer: (customer: SavedCustomer) => void;
-  onSaveCustomer: (customer: RecipientInfo, notes?: string) => void;
+  onSaveCustomer: (customer: RecipientInfo & { id?: string }, notes?: string) => void;
   onDeleteCustomer: (id: string) => void;
 }
 
@@ -77,15 +77,28 @@ export const CustomerSidebar: React.FC<CustomerSidebarProps> = ({
     });
   }, [customers, searchQuery]);
 
-  const openNewModal = () => {
+  const openNewModal = async () => {
     setEditingCustomer(null);
     setFormName('');
-    // Auto increment highest customer number
-    const maxNum = customers.reduce((max, c) => {
-      const n = parseInt(c.customerNumber, 10);
-      return !isNaN(n) && n > max ? n : max;
-    }, 61);
-    setFormCustomerNumber(String(maxNum + 1));
+
+    let nextNumber = '';
+    try {
+      const res = await fetch('/api/numbers/next?type=customer');
+      const data = await res.json();
+      if (data.success && data.number) nextNumber = String(data.number);
+    } catch {
+      // fallback below
+    }
+
+    if (!nextNumber) {
+      const maxNum = customers.reduce((max, c) => {
+        const n = parseInt(c.customerNumber, 10);
+        return !isNaN(n) && n > max ? n : max;
+      }, 61);
+      nextNumber = String(maxNum + 1);
+    }
+
+    setFormCustomerNumber(nextNumber);
     setFormOrgOrPersonNumber('');
     setFormPropertyDesignation('');
     setFormAddress('');
@@ -115,7 +128,8 @@ export const CustomerSidebar: React.FC<CustomerSidebarProps> = ({
     e.preventDefault();
     if (!formName.trim()) return;
 
-    const recipient: RecipientInfo = {
+    const recipient: RecipientInfo & { id?: string } = {
+      id: editingCustomer?.id,
       name: formName.trim(),
       company: '',
       address: formAddress.trim(),

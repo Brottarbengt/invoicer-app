@@ -112,6 +112,17 @@ function initSchema(db: DatabaseSync) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+
+  // Enforce unique invoice/customer numbers per user
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_user_number
+      ON invoices(user_id, invoice_number);
+  `);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_user_number
+      ON customers(user_id, customer_number)
+      WHERE customer_number IS NOT NULL AND customer_number != '';
+  `);
 }
 
 export function hashPin(pin: string): string {

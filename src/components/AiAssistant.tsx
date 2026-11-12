@@ -180,6 +180,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
           prompt: text,
           attachedText: combinedAttachedText,
           currentInvoice: {
+            invoiceNumber: currentInvoice.invoiceNumber,
             projectTitle: currentInvoice.projectTitle,
             projectDates: currentInvoice.projectDates,
             enableRot: currentInvoice.enableRot,
@@ -209,6 +210,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
         // Apply changes to invoice (including customerName if mentioned)
         onApplyInvoiceData({
           customerName: parsed.customerName || undefined,
+          invoiceNumber: parsed.invoiceNumber || undefined,
           projectTitle: parsed.projectTitle || currentInvoice.projectTitle,
           projectDates: parsed.projectDates || currentInvoice.projectDates,
           enableRot: parsed.enableRot !== undefined ? parsed.enableRot : currentInvoice.enableRot,
@@ -417,18 +419,18 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
           type="button"
           onClick={() =>
             setPromptClean(
-              'Kaminmontering hos Erik Beijer. Jag har 25 timmars snickeriarbete á 550 kr, servicebil 500 kr, samt material från Beijer (bifogar kvitto). 30% ROT.'
+              'Fönsterrenovering hos Andreas Modig. 49 timmars snickeriarbete á 550 kr, material Beijer 1000 kr, Hägglunds Plåt 2538 kr, servicebil 2 st á 250 kr. 30% ROT. Fakturanummer 6002.'
             )
           }
           className="shrink-0 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg shadow-2xs font-medium cursor-pointer transition-colors"
         >
-          Kaminmontering (Erik)
+          Fönster (Andreas)
         </button>
         <button
           type="button"
           onClick={() =>
             setPromptClean(
-              'Dörrbyte hos Jerry. 5 timmar snickeri á 550 kr. Nils Westergren hade 5 timmar á 550 kr, 13 mil milersättning och 50 kr material. 30% ROT.'
+              'Dörrbyte hos Jerry van Kooten. 10 timmar snickeri á 550 kr, 13 mil milersättning och 50 kr material. 30% ROT. Fakturanummer 6101.'
             )
           }
           className="shrink-0 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg shadow-2xs font-medium cursor-pointer transition-colors"

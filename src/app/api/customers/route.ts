@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
+import { getNextCustomerNumber, isCustomerNumberTaken } from '@/lib/numbering';
 import { SavedCustomer } from '@/types/invoice';
 
 export async function GET(req: NextRequest) {
@@ -60,6 +61,21 @@ export async function POST(req: NextRequest) {
     const db = getDatabase();
     const now = new Date().toISOString();
     const customerId = id && id.startsWith('cust-') ? id : `cust-${Date.now()}`;
+    let resolvedCustomerNumber = String(customerNumber || '').trim();
+
+    if (!resolvedCustomerNumber) {
+      resolvedCustomerNumber = getNextCustomerNumber(db, session.userId);
+    }
+
+    if (isCustomerNumberTaken(db, session.userId, resolvedCustomerNumber, customerId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Kundnummer ${resolvedCustomerNumber} används redan. Välj ett unikt nummer.`,
+        },
+        { status: 409 }
+      );
+    }
 
     // Check if customer exists by id
     const existing = db
@@ -85,7 +101,7 @@ export async function POST(req: NextRequest) {
         company.trim(),
         address.trim(),
         zipAndCity.trim(),
-        customerNumber.trim(),
+        resolvedCustomerNumber,
         email.trim(),
         phone.trim(),
         orgOrPersonNumber.trim(),
@@ -95,26 +111,39 @@ export async function POST(req: NextRequest) {
         session.userId
       );
     } else {
-      db.prepare(`
-        INSERT INTO customers (
-          id, user_id, name, company, address, zip_and_city, customer_number,
-          email, phone, org_or_person_number, property_designation, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customerId,
-        session.userId,
-        name.trim(),
-        company.trim(),
-        address.trim(),
-        zipAndCity.trim(),
-        customerNumber.trim(),
-        email.trim(),
-        phone.trim(),
-        orgOrPersonNumber.trim(),
-        propertyDesignation ? propertyDesignation.trim() : null,
-        now,
-        now
-      );
+      try {
+        db.prepare(`
+          INSERT INTO customers (
+            id, user_id, name, company, address, zip_and_city, customer_number,
+            email, phone, org_or_person_number, property_designation, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          customerId,
+          session.userId,
+          name.trim(),
+          company.trim(),
+          address.trim(),
+          zipAndCity.trim(),
+          resolvedCustomerNumber,
+          email.trim(),
+          phone.trim(),
+          orgOrPersonNumber.trim(),
+          propertyDesignation ? propertyDesignation.trim() : null,
+          now,
+          now
+        );
+      } catch (err: any) {
+        if (String(err?.message || '').includes('UNIQUE')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Kundnummer ${resolvedCustomerNumber} används redan. Välj ett unikt nummer.`,
+            },
+            { status: 409 }
+          );
+        }
+        throw err;
+      }
     }
 
     // Return updated list
