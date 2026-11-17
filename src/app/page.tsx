@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { DEFAULT_SAMPLE_INVOICE, InvoiceData, RecipientInfo, SavedCustomer, createEmptyInvoice } from '@/types/invoice';
+import { EMPTY_INVOICE, InvoiceData, RecipientInfo, SavedCustomer, SenderInfo, createEmptyInvoice } from '@/types/invoice';
 import { CustomerSidebar } from '@/components/CustomerSidebar';
 import { AiAssistant } from '@/components/AiAssistant';
 import { InvoicePreview } from '@/components/InvoicePreview';
@@ -9,16 +9,8 @@ import { Header } from '@/components/Header';
 import { SavedInvoicesModal } from '@/components/SavedInvoicesModal';
 import { PinLoginModal } from '@/components/PinLoginModal';
 import { RotExportModal } from '@/components/RotExportModal';
-import {
-  getSavedCustomers,
-  getSavedInvoicesList,
-  saveCurrentInvoice,
-  saveCustomer,
-  deleteSavedCustomer,
-  saveInvoiceToList,
-} from '@/utils/storage';
-import { downloadPdfDirectly, printInvoice } from '@/utils/pdfExport';
-import { addDaysToDate, getTodayDateString } from '@/utils/calculations';
+import { downloadPdfDirectly } from '@/utils/pdfExport';
+import { applyRotFlagsToItems } from '@/utils/rotLabor';
 import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp, FileCode2 } from 'lucide-react';
 
 interface AuthUser {
@@ -26,7 +18,15 @@ interface AuthUser {
   name: string;
   email?: string;
   personNumber?: string;
-  senderProfile: any;
+  senderProfile?: SenderInfo;
+}
+
+function buildBlankInvoice(invoiceNumber: string, senderProfile?: SenderInfo | null): InvoiceData {
+  const empty = createEmptyInvoice(invoiceNumber);
+  if (senderProfile) {
+    empty.sender = { ...empty.sender, ...senderProfile };
+  }
+  return empty;
 }
 
 export default function Home() {
@@ -36,7 +36,7 @@ export default function Home() {
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
 
   // Invoice & Customer state
-  const [invoice, setInvoice] = useState<InvoiceData>(DEFAULT_SAMPLE_INVOICE);
+  const [invoice, setInvoice] = useState<InvoiceData>(EMPTY_INVOICE);
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
   const [savedInvoices, setSavedInvoices] = useState<InvoiceData[]>([]);
@@ -53,38 +53,34 @@ export default function Home() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch customers from server SQLite database
+  // Fetch customers from SQLite
   const refreshCustomers = useCallback(async () => {
     try {
       const res = await fetch('/api/customers');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.customers)) {
-          setCustomers(data.customers);
-          return;
-        }
+      const data = await res.json();
+      if (data.success && Array.isArray(data.customers)) {
+        setCustomers(data.customers);
+        return;
       }
-    } catch (e) {
-      console.warn('Could not load customers from server, using local fallback', e);
+      showToast(data.error || 'Kunde inte ladda kunder', 'info');
+    } catch {
+      showToast('Kunde inte ladda kunder från databasen', 'info');
     }
-    setCustomers(getSavedCustomers());
   }, []);
 
-  // Fetch invoices from server SQLite database
+  // Fetch invoices from SQLite
   const refreshInvoices = useCallback(async () => {
     try {
       const res = await fetch('/api/invoices');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.invoices)) {
-          setSavedInvoices(data.invoices);
-          return;
-        }
+      const data = await res.json();
+      if (data.success && Array.isArray(data.invoices)) {
+        setSavedInvoices(data.invoices);
+        return;
       }
-    } catch (e) {
-      console.warn('Could not load invoices from server, using local fallback', e);
+      showToast(data.error || 'Kunde inte ladda fakturor', 'info');
+    } catch {
+      showToast('Kunde inte ladda fakturor från databasen', 'info');
     }
-    setSavedInvoices(getSavedInvoicesList());
   }, []);
 
   const fetchNextInvoiceNumber = useCallback(
@@ -99,7 +95,7 @@ export default function Home() {
       } catch (err) {
         console.warn('Could not fetch next invoice number', err);
       }
-      return customerNumber ? `${customerNumber}01` : '6001';
+      return customerNumber ? `${customerNumber}01` : '';
     },
     []
   );
@@ -117,13 +113,8 @@ export default function Home() {
           setIsAuthenticated(true);
           setCurrentUser(data.user);
 
-          // Prepare clean initial invoice with next free invoice number
           const nextNumber = await fetchNextInvoiceNumber();
-          const empty = createEmptyInvoice(nextNumber);
-          if (data.user.senderProfile) {
-            empty.sender = { ...empty.sender, ...data.user.senderProfile };
-          }
-          setInvoice(empty);
+          setInvoice(buildBlankInvoice(nextNumber, data.user.senderProfile));
 
           // Load data from server DB
           await refreshCustomers();
@@ -152,11 +143,7 @@ export default function Home() {
     setCurrentUser(user);
 
     const nextNumber = await fetchNextInvoiceNumber();
-    const empty = createEmptyInvoice(nextNumber);
-    if (user.senderProfile) {
-      empty.sender = { ...empty.sender, ...user.senderProfile };
-    }
-    setInvoice(empty);
+    setInvoice(buildBlankInvoice(nextNumber, user.senderProfile));
     setSelectedCustomerId(undefined);
 
     await refreshCustomers();
@@ -177,7 +164,17 @@ export default function Home() {
 
   const handleInvoiceChange = (updated: InvoiceData) => {
     setInvoice(updated);
-    saveCurrentInvoice(updated);
+  };
+
+  /** Toggle ROT and mark labor rows so the deduction actually appears. */
+  const handleToggleRot = (enabled: boolean) => {
+    handleInvoiceChange({
+      ...invoice,
+      enableRot: enabled,
+      rotPercent: invoice.rotPercent || 30,
+      items: applyRotFlagsToItems(invoice.items, enabled),
+    });
+    showToast(enabled ? 'ROT aktiverat (30% på arbetskostnad)' : 'ROT avstängt', 'info');
   };
 
   // Select customer from sidebar
@@ -186,10 +183,7 @@ export default function Home() {
 
     const currentNum = (invoice.invoiceNumber || '').trim();
     const looksUnassigned =
-      !currentNum ||
-      currentNum === '0121' ||
-      currentNum === '6101' ||
-      !currentNum.startsWith(customer.customerNumber || '___');
+      !currentNum || !currentNum.startsWith(customer.customerNumber || '___');
 
     let invoiceNumber = invoice.invoiceNumber;
     if (looksUnassigned && customer.customerNumber) {
@@ -225,8 +219,8 @@ export default function Home() {
     }
   };
 
-  // Save new or edited customer directly to SQLite on server
-  const handleSaveCustomer = async (recipient: RecipientInfo & { id?: string }, notes?: string) => {
+  // Save new or edited customer to SQLite
+  const handleSaveCustomer = async (recipient: RecipientInfo & { id?: string }) => {
     try {
       const res = await fetch('/api/customers', {
         method: 'POST',
@@ -236,23 +230,16 @@ export default function Home() {
       const data = await res.json();
       if (data.success && Array.isArray(data.customers)) {
         setCustomers(data.customers);
-        showToast(`Kunden ${recipient.name} har sparats i databasen!`);
+        showToast(`Kunden ${recipient.name} har sparats!`);
         return;
       }
-      if (res.status === 409 || data.error) {
-        showToast(data.error || 'Kundnummer krockar med befintlig kund', 'info');
-        return;
-      }
-    } catch (err) {
-      console.warn('Server save failed, using local fallback', err);
+      showToast(data.error || 'Kunde inte spara kunden', 'info');
+    } catch {
+      showToast('Kunde inte spara kunden till databasen', 'info');
     }
-
-    const updatedList = saveCustomer(recipient, notes);
-    setCustomers(updatedList);
-    showToast(`Kunden ${recipient.name} sparades lokalt`);
   };
 
-  // Delete customer directly in SQLite
+  // Delete customer from SQLite
   const handleDeleteCustomer = async (id: string) => {
     try {
       const res = await fetch(`/api/customers?id=${encodeURIComponent(id)}`, {
@@ -261,16 +248,13 @@ export default function Home() {
       const data = await res.json();
       if (data.success && Array.isArray(data.customers)) {
         setCustomers(data.customers);
-        showToast('Kund borttagen från databasen', 'info');
+        showToast('Kund borttagen', 'info');
         return;
       }
-    } catch (err) {
-      console.warn('Server delete failed, using local fallback', err);
+      showToast(data.error || 'Kunde inte ta bort kunden', 'info');
+    } catch {
+      showToast('Kunde inte ta bort kunden från databasen', 'info');
     }
-
-    const updatedList = deleteSavedCustomer(id);
-    setCustomers(updatedList);
-    showToast('Kund borttagen', 'info');
   };
 
   // Apply AI parsed data
@@ -313,23 +297,40 @@ export default function Home() {
         ? String(data.invoiceNumber).replace(/\D/g, '')
         : invoice.invoiceNumber;
 
+    const enableRot =
+      data.enableRot !== undefined ? Boolean(data.enableRot) : invoice.enableRot;
+    const baseItems = data.items && data.items.length > 0 ? data.items : invoice.items;
+    const items = applyRotFlagsToItems(baseItems, enableRot);
+
+    // Pure ROT toggle from checkbox — avoid "AI updated" toast noise
+    const onlyRotToggle =
+      data.enableRot !== undefined &&
+      Object.keys(data).every((k) => k === 'enableRot' || k === 'rotPercent');
+
     const updated: InvoiceData = {
       ...invoice,
       ...data,
+      enableRot,
+      rotPercent: data.rotPercent || invoice.rotPercent || 30,
       invoiceNumber: nextInvoiceNumber,
       customerNumber: newCustomerNumber,
       yourReference: newYourRef,
       recipient: newRecipient,
       projectTitle: data.projectTitle || invoice.projectTitle,
       projectDates: data.projectDates || invoice.projectDates,
-      items: data.items && data.items.length > 0 ? data.items : invoice.items,
+      items,
     };
     handleInvoiceChange(updated);
-    showToast(
-      data.invoiceNumber
-        ? `Fakturanummer uppdaterat till #${nextInvoiceNumber}`
-        : 'Fakturan uppdaterades av AI:n!'
-    );
+
+    if (onlyRotToggle) {
+      showToast(enableRot ? 'ROT aktiverat (30% på arbetskostnad)' : 'ROT avstängt', 'info');
+    } else {
+      showToast(
+        data.invoiceNumber
+          ? `Fakturanummer uppdaterat till #${nextInvoiceNumber}`
+          : 'Fakturan uppdaterades av AI:n!'
+      );
+    }
 
     // On mobile, show preview tab to see results
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -339,11 +340,7 @@ export default function Home() {
 
   // Reset invoice - completely clear but keep allocated number
   const handleResetInvoice = () => {
-    const empty = createEmptyInvoice(invoice.invoiceNumber || '');
-    if (currentUser?.senderProfile) {
-      empty.sender = { ...empty.sender, ...currentUser.senderProfile };
-    }
-    setInvoice(empty);
+    setInvoice(buildBlankInvoice(invoice.invoiceNumber || '', currentUser?.senderProfile));
     setSelectedCustomerId(undefined);
     showToast('Fakturan tömdes helt', 'info');
   };
@@ -357,31 +354,29 @@ export default function Home() {
 
     if (hasContent && invoice.invoiceNumber?.trim()) {
       try {
-        await fetch('/api/invoices', {
+        const res = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(invoice),
         });
+        const data = await res.json();
+        if (!data.success) {
+          showToast(data.error || 'Kunde inte spara innan ny faktura', 'info');
+          return;
+        }
         await refreshInvoices();
-      } catch (err) {
-        console.warn('Auto-save before next invoice failed', err);
+      } catch {
+        showToast('Kunde inte spara innan ny faktura', 'info');
+        return;
       }
     }
 
     const nextNumber = await fetchNextInvoiceNumber(
       invoice.customerNumber || invoice.recipient?.customerNumber || undefined
     );
-    const empty = createEmptyInvoice(nextNumber);
-    if (currentUser?.senderProfile) {
-      empty.sender = { ...empty.sender, ...currentUser.senderProfile };
-    }
-    setInvoice(empty);
+    setInvoice(buildBlankInvoice(nextNumber, currentUser?.senderProfile));
     setSelectedCustomerId(undefined);
-    showToast(`Ny faktura skapad (#${nextNumber})`);
-  };
-
-  const handlePrint = () => {
-    printInvoice();
+    showToast(nextNumber ? `Ny faktura skapad (#${nextNumber})` : 'Ny faktura skapad');
   };
 
   const handleDownloadPdf = async () => {
@@ -394,7 +389,7 @@ export default function Home() {
     }
 
     const cleanCustomerName = (invoice.recipient.name || 'Kund').replace(/[^a-zA-Z0-9åäöÅÄÖ_-]/g, '_');
-    const filename = `Faktura_${invoice.invoiceNumber || '0121'}_${cleanCustomerName}.pdf`;
+    const filename = `Faktura_${invoice.invoiceNumber || 'utkast'}_${cleanCustomerName}.pdf`;
 
     showToast('Genererar skarp PDF...', 'info');
     const success = await downloadPdfDirectly('invoice-sheet', filename);
@@ -407,7 +402,7 @@ export default function Home() {
     }
   };
 
-  // Save invoice directly to SQLite DB on server
+  // Save invoice to SQLite
   const handleSaveInvoice = async () => {
     if (!invoice.invoiceNumber?.trim()) {
       showToast('Ange ett fakturanummer innan du sparar', 'info');
@@ -423,23 +418,16 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         await refreshInvoices();
-        showToast(`Faktura #${invoice.invoiceNumber} sparades i databasen!`);
+        showToast(`Faktura #${invoice.invoiceNumber} sparades!`);
         return;
       }
-      if (res.status === 409 || data.error) {
-        showToast(data.error || 'Fakturanummer krockar med befintlig faktura', 'info');
-        return;
-      }
-    } catch (err) {
-      console.warn('Server save invoice failed, using local fallback', err);
+      showToast(data.error || 'Kunde inte spara fakturan', 'info');
+    } catch {
+      showToast('Kunde inte spara fakturan till databasen', 'info');
     }
-
-    saveInvoiceToList(invoice);
-    setSavedInvoices(getSavedInvoicesList());
-    showToast(`Faktura #${invoice.invoiceNumber} sparades i arkivet!`);
   };
 
-  // Delete invoice in SQLite DB
+  // Delete invoice from SQLite
   const handleDeleteSavedInvoice = async (id: string) => {
     try {
       const res = await fetch(`/api/invoices?id=${encodeURIComponent(id)}`, {
@@ -448,19 +436,13 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         await refreshInvoices();
-        showToast('Faktura raderad från databasen', 'info');
+        showToast('Faktura raderad', 'info');
         return;
       }
-    } catch (err) {
-      console.warn('Server delete invoice failed, using local fallback', err);
+      showToast(data.error || 'Kunde inte radera fakturan', 'info');
+    } catch {
+      showToast('Kunde inte radera fakturan från databasen', 'info');
     }
-
-    const filtered = savedInvoices.filter((i) => i.id !== id);
-    setSavedInvoices(filtered);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('faktura_saved_list', JSON.stringify(filtered));
-    }
-    showToast('Faktura raderad från arkivet', 'info');
   };
 
   return (
@@ -487,7 +469,6 @@ export default function Home() {
         isRotEnabled={invoice.enableRot}
         onOpenRotModal={() => setIsRotModalOpen(true)}
         onLogout={handleLogout}
-        onPrint={handlePrint}
         onDownloadPdf={handleDownloadPdf}
         onNextInvoice={handleNextInvoice}
         onSaveInvoice={handleSaveInvoice}
@@ -567,7 +548,7 @@ export default function Home() {
                   <input
                     type="checkbox"
                     checked={invoice.enableRot}
-                    onChange={(e) => handleInvoiceChange({ ...invoice, enableRot: e.target.checked })}
+                    onChange={(e) => handleToggleRot(e.target.checked)}
                     className="w-3.5 h-3.5 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
                   />
                   <span>ROT (30%)</span>
@@ -673,7 +654,7 @@ export default function Home() {
                     <input
                       type="checkbox"
                       checked={invoice.enableRot}
-                      onChange={(e) => handleInvoiceChange({ ...invoice, enableRot: e.target.checked })}
+                      onChange={(e) => handleToggleRot(e.target.checked)}
                       className="rounded text-red-600 focus:ring-red-500"
                     />
                     <span>Aktivera 30% ROT-avdrag på arbetskostnad</span>
@@ -733,7 +714,7 @@ export default function Home() {
         invoices={savedInvoices}
         onSelectInvoice={(selected) => {
           setInvoice(selected);
-          saveCurrentInvoice(selected);
+          setSelectedCustomerId(undefined);
           showToast(`Laddade faktura #${selected.invoiceNumber || 'utkast'}`);
         }}
         onDeleteInvoice={handleDeleteSavedInvoice}

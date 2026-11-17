@@ -94,7 +94,7 @@ export const CustomerSidebar: React.FC<CustomerSidebarProps> = ({
       const maxNum = customers.reduce((max, c) => {
         const n = parseInt(c.customerNumber, 10);
         return !isNaN(n) && n > max ? n : max;
-      }, 61);
+      }, 0);
       nextNumber = String(maxNum + 1);
     }
 

@@ -2,10 +2,9 @@
 
 import React from 'react';
 import {
-  Download,
   FolderOpen,
-  Printer,
   PlusCircle,
+  Printer,
   Save,
   Users,
   Sparkles,
@@ -21,7 +20,6 @@ interface HeaderProps {
   isRotEnabled?: boolean;
   onOpenRotModal?: () => void;
   onLogout?: () => void;
-  onPrint: () => void;
   onDownloadPdf: () => void;
   onNextInvoice: () => void;
   onSaveInvoice: () => void;
@@ -40,7 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
   isRotEnabled,
   onOpenRotModal,
   onLogout,
-  onPrint,
   onDownloadPdf,
   onNextInvoice,
   onSaveInvoice,
@@ -64,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
                 KW&apos;s Bygg Fakturering
               </h1>
               <span className="text-[10px] font-mono font-bold bg-slate-800 text-red-400 border border-slate-700 px-2 py-0.5 rounded-full">
-                #{invoiceNumber || '6101'}
+                #{invoiceNumber || '—'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate max-w-[220px] sm:max-w-none">
@@ -121,19 +118,13 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={onDownloadPdf}
             disabled={isDownloadingPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
+            title="Ladda ner eller skriv ut fakturan som PDF"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-colors cursor-pointer disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5 text-red-400" />
-            <span>{isDownloadingPdf ? 'Skapar PDF...' : 'Ladda ner PDF'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onPrint}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Skriv ut / Spara</span>
+            <Printer className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">
+              {isDownloadingPdf ? 'Skapar PDF...' : 'Ladda ner/skriv ut pdf'}
+            </span>
           </button>
 
           {userName && onLogout && (

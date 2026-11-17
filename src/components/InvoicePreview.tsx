@@ -32,8 +32,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        fontFamily:
-          'Plus Jakarta Sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'var(--font-sans), system-ui, sans-serif',
         fontSize: '12px',
         lineHeight: 1.4,
         overflow: 'hidden',
@@ -70,7 +69,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               {invoice.title || 'FAKTURA'}
             </div>
             <div className="inline-block bg-slate-50 text-slate-900 font-bold text-xs px-3.5 py-1 rounded-md border border-slate-300">
-              Nr #{invoice.invoiceNumber || '6101'}
+              Nr #{invoice.invoiceNumber || '—'}
             </div>
           </div>
         </div>
@@ -303,16 +302,16 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               <div className="flex justify-between py-0.5 border-b border-dashed border-slate-200">
                 <span className="text-slate-500">Bankgiro:</span>
                 <span className="font-extrabold text-slate-900 text-xs tracking-wide">
-                  {invoice.sender.bankgiro || '5227-5153'}
+                  {invoice.sender.bankgiro || '—'}
                 </span>
               </div>
               <div className="flex justify-between py-0.5 border-b border-dashed border-slate-200">
                 <span className="text-slate-500">Ange som OCR / Referens:</span>
-                <span className="font-bold text-slate-900">{invoice.invoiceNumber || '6101'}</span>
+                <span className="font-bold text-slate-900">{invoice.invoiceNumber || '—'}</span>
               </div>
               <div className="flex justify-between py-0.5 border-b border-dashed border-slate-200">
                 <span className="text-slate-500">Förfallodatum:</span>
-                <span className="font-bold text-red-600">{invoice.dueDate || '2026-11-16'}</span>
+                <span className="font-bold text-red-600">{invoice.dueDate || '—'}</span>
               </div>
               <div className="flex justify-between py-0.5">
                 <span className="text-slate-500">Dröjsmålsränta:</span>
@@ -412,7 +411,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
         </div>
         <div>
           <div className="font-bold text-slate-800 uppercase tracking-wider mb-0.5">Betalsätt</div>
-          <div>Bankgiro: {invoice.sender.bankgiro || '5227-5153'}</div>
+          <div>Bankgiro: {invoice.sender.bankgiro || '—'}</div>
           <div>Villkor: {invoice.paymentTerms || '14 dagar netto'}</div>
           <div>Valuta: {invoice.currency || 'SEK'}</div>
         </div>

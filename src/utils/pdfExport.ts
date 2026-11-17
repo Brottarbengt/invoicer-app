@@ -1,12 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export function printInvoice(): void {
-  if (typeof window !== 'undefined') {
-    window.print();
-  }
-}
-
 /** Temporarily undo CSS that breaks html2canvas (hidden ancestors, scale transforms). */
 function prepareElementForCapture(element: HTMLElement): () => void {
   const restores: Array<() => void> = [];

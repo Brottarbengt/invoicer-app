@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { DEFAULT_SAMPLE_CUSTOMERS, SenderInfo, SavedCustomer, InvoiceData } from '@/types/invoice';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 if (!fs.existsSync(DATA_DIR)) {
@@ -179,30 +178,6 @@ function seedInitialData(db: DatabaseSync) {
       now
     );
 
-    // Seed default sample customers for Karl
-    const insertCust = db.prepare(`
-      INSERT INTO customers (
-        id, user_id, name, company, address, zip_and_city, customer_number,
-        email, phone, org_or_person_number, property_designation, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    for (const c of DEFAULT_SAMPLE_CUSTOMERS) {
-      insertCust.run(
-        c.id,
-        'karl',
-        c.name,
-        c.company || '',
-        c.address || '',
-        c.zipAndCity || '',
-        c.customerNumber || '',
-        c.email || '',
-        c.phone || '',
-        c.orgOrPersonNumber || '',
-        c.propertyDesignation || '',
-        now,
-        now
-      );
-    }
+    // Customers and invoices come from the live SQLite DB / import — no sample seed.
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InvoiceData, InvoiceItem } from '@/types/invoice';
 import { getSessionUser } from '@/lib/auth';
+import { applyRotFlagsToItems, convertInclusiveVatPricesFromPrompt } from '@/utils/rotLabor';
 
 interface ChatHistoryItem {
   role: 'user' | 'assistant';
@@ -36,12 +37,16 @@ VIKTIGA REGLER FÖR ÄNDRINGAR OCH RADER:
    - Lägg ALDRIG till Nils Westergren eller milersättning om det inte uttryckligen efterfrågas!
    - Skapa ALDRIG rader med 0 timmar eller 0 i antal.
 
-4. MATERIAL & UNDERLAG FRÅN BYGGHANDEL (t.ex. Beijer Bygg):
+4. MATERIAL & UNDERLAG FRÅN BYGGHANDEL (t.ex. Beijer Bygg, K-bygg):
    - Om användaren nämner material eller om en faktura/kvitto är bifogat:
-     Skapa en rad med beskrivning "Material: Beijer Bygg" (eller motsvarande).
+     Skapa en rad med beskrivning "Material: Beijer Bygg" / "Material: K-bygg" (eller motsvarande).
    - I svenska fakturor skrivs decimaler med komma (t.ex. 341,94). Sätt beloppet med punkt (t.ex. 341.94).
-   - Läs av beloppen exkl. moms. Om användaren ber om att inte räkna in verktyg/skydd (t.ex. kniv, handskar, såg), dra bort dessa från summan.
-   - Sätt den uträknade summan som unitPrice, quantity: 1, unit: "st", isRotRut: false.
+   - unitPrice ska ALLTID vara EXKLUSIVE moms.
+   - Om användaren skriver "inkl moms", "ink moms" eller "inklusive moms": dividera beloppet med 1.25 och avrunda till 2 decimaler.
+     Exempel: 725 kr ink moms → unitPrice: 580.00
+   - Om användaren skriver "exkl moms" eller inget anges: använd beloppet som det är.
+   - Om användaren ber om att inte räkna in verktyg/skydd (t.ex. kniv, handskar, såg), dra bort dessa från summan.
+   - Sätt quantity: 1, unit: "st", isRotRut: false.
    - unitPrice för material får aldrig vara 0 om det finns priser på underlaget!
 
 5. SERVICEBIL / MILERSÄTTNING:
@@ -54,8 +59,8 @@ VIKTIGA REGLER FÖR ÄNDRINGAR OCH RADER:
    - Om ett projektnamn redan finns och användaren inte ber om att byta: BEHÅLL det befintliga projektnamnet!
 
 7. ROT-AVDRAG:
-   - Sätt enableRot: true och rotPercent: 30 om användaren önskar ROT-avdrag.
-   - Sätt isRotRut: true BARA på godkända arbetstimmar/snickeri.
+   - Sätt enableRot: true och rotPercent: 30 om användaren önskar ROT-avdrag ELLER om ROT redan är aktivt på fakturan.
+   - På ALLA arbetstimmar/snickerirader (unit "tim"/"h"): sätt ALLTID isRotRut: true när ROT är aktivt.
    - Sätt ALLTID isRotRut: false på material, servicebil, frakt och milersättning.
 
 8. FAKTURANUMMER:
@@ -172,7 +177,7 @@ ${prompt}
     const durationMs = Date.now() - startTime;
 
     if (ollamaResponse) {
-      const sanitizedItems = (ollamaResponse.items || []).map((item: any, idx: number) => {
+      let sanitizedItems = (ollamaResponse.items || []).map((item: any, idx: number) => {
         const cleanQuantity =
           item.quantity !== null && item.quantity !== undefined
             ? parseFloat(String(item.quantity).replace(',', '.'))
@@ -196,6 +201,14 @@ ${prompt}
         };
       });
 
+      // Convert "725 kr ink moms" → exkl. moms, and mark labor for ROT
+      sanitizedItems = convertInclusiveVatPricesFromPrompt(prompt, sanitizedItems);
+      const enableRot =
+        ollamaResponse.enableRot !== undefined
+          ? Boolean(ollamaResponse.enableRot)
+          : Boolean(currentInvoice.enableRot);
+      sanitizedItems = applyRotFlagsToItems(sanitizedItems, enableRot);
+
       const cleanProjectDates = (ollamaResponse.projectDates || '')
         .replace(/\s*[-•,]?\s*Fastighet:.*$/i, '')
         .trim();
@@ -212,6 +225,7 @@ ${prompt}
         durationMs,
         data: {
           ...ollamaResponse,
+          enableRot,
           invoiceNumber: rawInvoiceNumber || null,
           projectDates: cleanProjectDates || null,
           items: sanitizedItems,
@@ -373,6 +387,11 @@ function smartSwedishInvoiceParser(prompt: string, attachedText: string | undefi
     invoiceNumber = invoiceNumberMatch[1];
   }
 
+  const normalizedItems = applyRotFlagsToItems(
+    convertInclusiveVatPricesFromPrompt(prompt, items),
+    enableRot
+  );
+
   return {
     customerName,
     invoiceNumber,
@@ -380,9 +399,9 @@ function smartSwedishInvoiceParser(prompt: string, attachedText: string | undefi
     projectDates: currentInvoice.projectDates || `Utförda ${new Date().toISOString().split('T')[0]}`,
     enableRot,
     rotPercent: 30,
-    items,
+    items: normalizedItems,
     summaryMessage: invoiceNumber
-      ? `Uppdaterade fakturanummer till ${invoiceNumber}. ${items.length} poster finns nu på fakturan.`
-      : `Uppdaterade fakturan: ${items.length} poster finns nu på fakturan.`,
+      ? `Uppdaterade fakturanummer till ${invoiceNumber}. ${normalizedItems.length} poster finns nu på fakturan.`
+      : `Uppdaterade fakturan: ${normalizedItems.length} poster finns nu på fakturan.`,
   };
 }

@@ -127,101 +127,6 @@ export interface InvoiceData {
   design: InvoiceDesign;
 }
 
-export const DEFAULT_SAMPLE_CUSTOMERS: SavedCustomer[] = [
-  {
-    id: 'cust-andreas-60',
-    name: 'Andreas Modig',
-    company: '',
-    address: 'Annefors 7951',
-    zipAndCity: '821 92 Bollnäs',
-    customerNumber: '60',
-    email: 'fakturor7959@gmail.com',
-    phone: '070-632 59 56',
-    orgOrPersonNumber: '',
-    propertyDesignation: 'Annefors 1:1',
-    housingType: 'property',
-  },
-  {
-    id: 'cust-jerry-61',
-    name: 'Jerry van Kooten',
-    company: '',
-    address: 'Kolforsen 39',
-    zipAndCity: '816 93 Ockelbo',
-    customerNumber: '61',
-    email: 'jerry@jvkooten.info',
-    phone: '',
-    orgOrPersonNumber: '19700526-1578',
-    propertyDesignation: 'ÖSTBY 8:46',
-    housingType: 'property',
-  },
-  {
-    id: 'cust-nils-01',
-    name: 'Nils Westergren',
-    company: 'Annefors Snickeri & Bygg AB',
-    address: 'Blomstervägen 3',
-    zipAndCity: '821 40 Bollnäs',
-    customerNumber: '1',
-    email: 'Nils_westergren@hotmail.com',
-    phone: '070-653 43 14',
-    orgOrPersonNumber: '559055-5974',
-  },
-  {
-    id: 'cust-ida-15',
-    name: 'Ida Söderqvist & Svante',
-    company: '',
-    address: 'Lillebovägen 12',
-    zipAndCity: '191 44 Sollentuna',
-    customerNumber: '15',
-    email: '',
-    phone: '',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-johan-18',
-    name: 'Johan Käck',
-    company: '',
-    address: 'Herte 8642',
-    zipAndCity: '821 92 Bollnäs',
-    customerNumber: '18',
-    email: '',
-    phone: '070-373 34 47',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-tolino-24',
-    name: 'Tolino trädgård AB',
-    company: 'Tolino trädgård AB',
-    address: 'Säbyvikskullen 1',
-    zipAndCity: '179 96 Svartsjö',
-    customerNumber: '24',
-    email: '',
-    phone: '070-239 55 90',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-lars-52',
-    name: 'Lars Persson',
-    company: '',
-    address: 'Villavägen 2',
-    zipAndCity: '703 85 Glanshammar',
-    customerNumber: '52',
-    email: '',
-    phone: '070-590 83 04',
-    orgOrPersonNumber: '',
-  },
-  {
-    id: 'cust-erik-90',
-    name: 'Erik Beijer',
-    company: '',
-    address: 'Brånanvägen 18',
-    zipAndCity: '821 34 Bollnäs',
-    customerNumber: '90',
-    email: '',
-    phone: '',
-    orgOrPersonNumber: '',
-  },
-];
-
 export function createEmptyInvoice(invoiceNumber: string = ''): InvoiceData {
   const today = new Date().toISOString().split('T')[0];
   const d = new Date();
@@ -297,4 +202,5 @@ export function createEmptyInvoice(invoiceNumber: string = ''): InvoiceData {
   };
 }
 
-export const DEFAULT_SAMPLE_INVOICE: InvoiceData = createEmptyInvoice('6001');
+/** Blank draft used only as React initial state before auth loads next number. */
+export const EMPTY_INVOICE: InvoiceData = createEmptyInvoice('');

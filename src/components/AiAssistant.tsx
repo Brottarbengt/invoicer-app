@@ -260,11 +260,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     }
   };
 
-  const setPromptClean = (text: string) => {
-    setPromptText(text);
-    textareaRef.current?.focus();
-  };
-
   return (
     <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col h-[780px] overflow-hidden">
       {/* Header */}
@@ -417,28 +412,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
       <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
         <button
           type="button"
-          onClick={() =>
-            setPromptClean(
-              'Fönsterrenovering hos Andreas Modig. 49 timmars snickeriarbete á 550 kr, material Beijer 1000 kr, Hägglunds Plåt 2538 kr, servicebil 2 st á 250 kr. 30% ROT. Fakturanummer 6002.'
-            )
-          }
-          className="shrink-0 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg shadow-2xs font-medium cursor-pointer transition-colors"
-        >
-          Fönster (Andreas)
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setPromptClean(
-              'Dörrbyte hos Jerry van Kooten. 10 timmar snickeri á 550 kr, 13 mil milersättning och 50 kr material. 30% ROT. Fakturanummer 6101.'
-            )
-          }
-          className="shrink-0 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg shadow-2xs font-medium cursor-pointer transition-colors"
-        >
-          Dörrbyte (Jerry)
-        </button>
-        <button
-          type="button"
           onClick={() => handleSendPrompt('Lägg till en post för Servicebil på 500 kr.')}
           className="shrink-0 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg shadow-2xs font-medium cursor-pointer transition-colors flex items-center gap-1"
         >
@@ -461,7 +434,12 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
           <input
             type="checkbox"
             checked={currentInvoice.enableRot}
-            onChange={(e) => onApplyInvoiceData({ enableRot: e.target.checked })}
+            onChange={(e) =>
+              onApplyInvoiceData({
+                enableRot: e.target.checked,
+                rotPercent: currentInvoice.rotPercent || 30,
+              })
+            }
             className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
           />
           <span

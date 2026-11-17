@@ -18,64 +18,41 @@ Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (samt mobilanp
 ## ✨ Huvudfunktioner
 
 ### 1. 👥 Kundregister med realtidssökning
-* **Live-filtrering:** Filtrerar ögonblickligen bland sparade kunder allteftersom du skriver på namn, gatuadress, ort, telefon, e-post, personnummer eller kundnummer.
-* **Rena kontaktkort:** Visar enbart beställarens kontaktuppgifter. Gamla projektnamn är bortrensade så att varje faktura får sitt eget specifika projektnamn.
-* **1-klicksaktivering:** Klicka på valfri kund i listan så fylls alla uppgifter, kundnummer och personnummer i direkt på fakturan.
-* **Hantera kunder:** Lägg till nya kunder eller redigera befintliga via ett snabbt formulär.
+* **Live-filtrering** på namn, adress, ort, telefon, e-post, personnummer eller kundnummer.
+* **1-klicksaktivering** fyller kunduppgifter direkt på fakturan.
+* **Unika kundnummer** tilldelas via databasen så nummer inte krockar.
 
-### 2. 🤖 AI Faktura-Assistent (Cursor-stil med lokal Ollama)
-* **Körs 100% lokalt & privat:** Använder **Ollama** med modellen **`qwen2.5:7b`** som körs i hårdvaruacceleration på datorns grafikkort (NVIDIA RTX 3070 Ti, ~4.4 GB VRAM). Ingen känslig kunddata eller personnummer skickas till molnet.
-* **Naturligt språk:** Skriv instruktioner som du vill:
-  > *"Dörrbyte hos Jerry. 5 timmar snickeri á 550 kr. Nils Westergren hade 5 timmar á 550 kr, 13 mil milersättning och 50 kr material. 30% ROT."*
-* **Bifoga PDF-underlag:** Stöd för att ladda upp PDF-fakturor från kollegor eller bygghandeln (t.ex. Beijer Bygg). Texten extraheras automatiskt via `PyMuPDF` och analyseras av AI:n.
-* **Flersidigt konversationsminne:** Ändra och justera fakturan i dialog med assistenten:
-  > *"Ta bort servicebilen och ändra mina timmar till 20"*  
-  AI:n behåller befintliga rader och utför exakt den ändring du bad om utan att hitta på oönskade rader.
-* **Automatisk kundigenkänning:** Om du nämner ett kundnamn (t.ex. *"skapa en faktura med Erik Beijer..."*) kopplas rätt kundkort från registret automatiskt.
-* **Fallback-läge:** Om Ollama inte är igång faller systemet mjukt tillbaka på en inbyggd svensk regelmotor.
+### 2. 🤖 AI Faktura-Assistent (lokal Ollama)
+* Körs 100% lokalt med **`qwen2.5:7b`** via Ollama.
+* Bifoga PDF-underlag (extraheras via PyMuPDF).
+* Flersidigt konversationsminne för ändringar utan hallucinerade rader.
+* Fallback till inbyggd svensk regelmotor om Ollama är offline.
 
-### 3. 📄 Live Modern A4-Faktura
-* **Skandinavisk design:** Byggd med modern typografi (*Plus Jakarta Sans*), tydlig informationshierarki och KW's Byggs röda profilfärg.
-* **Automatisk matematik:**
-  * Beräknar delsummor, moms (25%) och svensk öresutjämning i realtid.
-  * **ROT-avdrag (30%):** Beräknar skattereduktionen korrekt på arbetskostnaden *inklusive moms* och specificerar tydligt kundens nettosumma samt beloppet att ansöka från Skatteverket.
-  * ROT-regler respekteras strikt: Material, servicebil och milersättning exkluderas alltid från ROT.
-* **Interaktiv ROT-brytare:** Slå av och på 30% ROT-avdrag med ett enda klick via bockrutan.
-* **Ren startvy:** Appen startar alltid med en ren, tom fakturamall redo för nästa fakturanummer.
+### 3. 📄 Live A4-faktura & ROT
+* Automatisk moms, öresutjämning och **30% ROT** på arbetskostnad.
+* **ROT på fil:** exporterar validerad XML (XSD v6.0) för Skatteverkets e-tjänst.
+* PDF-nedladdning och utskrift.
 
-### 4. 📱 Mobiloptimerad & Fjärråtkomst via Tailscale
-* **Responsiv layout:** På mobiltelefoner fälls kolumnerna ihop till en smidig bottenmeny med tre flikar:
-  * `[Kunder]` – Välj eller sök kund.
-  * `[AI Assistent]` – Skriv prompt, bifoga underlag eller tryck snabbknappar.
-  * `[Faktura A4]` – Granska fakturan och ladda ner PDF.
-* **Tailscale VPN (Körs var som helst):** Med Tailscale installerat på datorn och mobilen når du servern säkert överallt via din privata Tailscale-adress, även över 4G/5G ute på byggen.
-* **App-känsla på hemskärmen:** Välj *"Lägg till på startskärmen / Installera app"* i mobilens webbläsare för att köra appen i fullskärm med egen app-ikon.
+### 4. 📱 Mobil & Tailscale
+* Mobilflikar: Kunder / AI / Faktura A4.
+* Säker fjärråtkomst via Tailscale.
 
-### 5. 🔒 Serverlagring i SQLite & Multi-User med PIN
-* **Permanent datalagring (SQLite):** Kunder, fakturahistorik och företagsprofiler sparas i en lokal SQLite-databas (`data/invoicer.db`) på din dators hårddisk. Data försvinner aldrig vid rensning av webbläsarens cache, och synkas sömlöst mellan dator och mobil!
-* **Multi-User med PIN-lås:**
-  * Mobilanpassad numerisk knappsats med 4–6 siffrig PIN-kod (standard-PIN för Karl: `1234`).
-  * Säker session som sparas i 30 dagar på dina betrodda enheter.
-  * Behörighetsskydd på alla AI- och databas-API:er för att förhindra obehörig åtkomst eller resurskapning av grafikkortet.
-* **BankID-förberedd arkitektur:** Databasen och användarmodellen är förberedda med fält för personnummer (`personNumber`), vilket gör att BankID-inloggning kan kopplas på sömlöst i framtiden.
-* **Stöd för flera användare:** Möjlighet att lägga till nya hantverkarprofiler (t.ex. kollegor) med egna PIN-koder, företagsuppgifter och kundregister.
+### 5. 🔒 SQLite & Multi-User PIN
+* Kunder och fakturor sparas i `data/invoicer.db`.
+* PIN-session (30 dagar), BankID-förberedd användarmodell.
 
 ---
 
 ## 🛠️ Teknisk arkitektur
 
-| Komponent | Teknologi | Beskrivning |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **Next.js 16 (Turbopack)** | React 19, App Router, SSR & Client Components |
-| **Språk** | **TypeScript 5** | Strikt typning för alla fakturamodeller och beräkningar |
-| **Styling** | **Tailwind CSS 4** | Responsiv layout, utility-first styling, print-stilar |
-| **Ikoner** | **Lucide React** | Moderna och enhetliga gränssnittsikoner |
-| **Lokal Databas** | **SQLite (node:sqlite)** | Snabb och driftsäker lokal relationsdatabas (`data/invoicer.db`) |
-| **Autentisering** | **Multi-User PIN & Sessions** | SHA-256 hashade PIN-koder, 30 dagars HTTP-only cookies |
-| **Lokal AI Engine** | **Ollama** | Kör `qwen2.5:7b` (Q4_K_M) lokalt via REST API (`/api/generate`) |
-| **PDF-extraktion** | **PyMuPDF (fitz)** | Snabb och robust textextraktion ur uppladdade fakturaunderlag |
-| **PDF-export** | **jsPDF / html2canvas** | Direkt nedladdning av A4-PDF i webbläsaren |
-| **Nätverk & Fjärråtkomst** | **Tailscale** | Säker, krypterad mesh-VPN för åtkomst från mobilen via 4G/5G |
+| Komponent | Teknologi |
+| :--- | :--- |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Databas | SQLite (`node:sqlite`) |
+| Auth | PIN + HTTP-only sessions |
+| AI | Ollama (`qwen2.5:7b`) |
+| PDF | jsPDF / html2canvas + PyMuPDF för underlag |
+| Nätverk | Tailscale (valfritt) |
 
 ---
 
@@ -84,46 +61,41 @@ Gränssnittet är uppdelat i en ren och effektiv 3-kolumns layout (samt mobilanp
 ```
 invoicer-app/
 ├── data/
-│   └── invoicer.db                        # SQLite-databas (lokal, git-ignorerad)
+│   └── invoicer.db                        # SQLite (git-ignorerad)
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── ai/
-│   │   │   │   ├── extract-pdf/route.ts   # Extraherar text ur uppladdade PDF:er via PyMuPDF
-│   │   │   │   ├── parse-invoice/route.ts # Huvud-API för Ollama / AI-fakturaparsing
-│   │   │   │   └── status/route.ts        # Kollar om Ollama körs och kontrollerar VRAM
-│   │   │   ├── auth/
-│   │   │   │   ├── login/route.ts         # PIN-inloggning och utfärdande av 30-dagars sessionscookie
-│   │   │   │   ├── logout/route.ts        # Utloggning
-│   │   │   │   ├── me/route.ts            # Returnerar aktiv session och användare
-│   │   │   │   ├── profile/route.ts       # Uppdaterar avsändar-/företagsprofil
-│   │   │   │   └── register/route.ts      # Skapar ny användare med PIN
-│   │   │   ├── customers/route.ts         # CRUD-endpoint för kundregistret i SQLite
-│   │   │   └── invoices/route.ts          # CRUD-endpoint för sparade fakturor i SQLite
-│   │   ├── layout.tsx                     # Global layout med Plus Jakarta Sans
-│   │   ├── page.tsx                       # Huvudsida med 3-kolumnsvy och tillståndshantering
-│   │   └── globals.css                    # Tailwind CSS och utskriftsanpassningar
+│   │   │   ├── ai/                        # extract-pdf, parse-invoice, status
+│   │   │   ├── auth/                      # login, logout, me, profile, register
+│   │   │   ├── customers/route.ts
+│   │   │   ├── invoices/route.ts
+│   │   │   └── numbers/next/route.ts      # Nästa faktura-/kundnummer
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── globals.css
 │   ├── components/
-│   │   ├── AiAssistant.tsx                # Prompt- och chatkomponent med bifoga-stöd
-│   │   ├── CustomerSidebar.tsx            # Kundregister med sök och redigering
-│   │   ├── Header.tsx                     # Toppmeny med åtgärder och mobilflikar
-│   │   ├── InvoicePreview.tsx             # Modern pixel-perfekt A4-förhandsgranskning
-│   │   ├── InvoiceEditor.tsx              # Detaljerad formulärredigerare
-│   │   ├── PinLoginModal.tsx              # Numerisk PIN-knappsats för inloggning
-│   │   └── SavedInvoicesModal.tsx         # Arkiv över sparade fakturor
+│   │   ├── AiAssistant.tsx
+│   │   ├── CustomerSidebar.tsx
+│   │   ├── Header.tsx
+│   │   ├── InvoicePreview.tsx
+│   │   ├── PinLoginModal.tsx
+│   │   ├── RotExportModal.tsx
+│   │   └── SavedInvoicesModal.tsx
 │   ├── lib/
-│   │   ├── auth.ts                        # Sessions- och PIN-hantering
-│   │   └── db.ts                          # SQLite-initiering, scheman och seedning
+│   │   ├── auth.ts
+│   │   ├── db.ts
+│   │   └── numbering.ts
+│   ├── schemas/skatteverket/              # Officiella ROT XSD v6.0
 │   ├── types/
-│   │   ├── invoice.ts                     # Datastrukturer för fakturor, rader och kunder
-│   │   └── sqlite.d.ts                    # Typdeklarationer för node:sqlite
 │   └── utils/
-│       ├── calculations.ts                # Matematiska beräkningar för moms, ROT och avrundning
-│       ├── pdfExport.ts                   # Exportfunktioner till PDF och utskrift
-│       └── storage.ts                     # Fallback-hantering för lokal lagring
+│       ├── calculations.ts
+│       ├── pdfExport.ts
+│       ├── rotValidation.ts
+│       └── rotXmlExport.ts
 ├── public/
-│   ├── app-screenshot.png                 # Skärmdump för README
-│   └── kws-bygg-logo.png                  # Företagslogotyp
+│   ├── app-screenshot.png
+│   └── kws-bygg-logo.png
+├── test_rot_xml.py
 └── README.md
 ```
 
@@ -132,48 +104,31 @@ invoicer-app/
 ## 🚀 Kom igång
 
 ### Förutsättningar
-1. **Node.js** (v18 eller senare, rekommenderat v22+)
-2. **Python** med `pymupdf` installerat:
+1. **Node.js** (v18+, rekommenderat v22+)
+2. **Python** med `pymupdf` (+ `xmlschema` för ROT-tester):
    ```bash
-   pip install pymupdf
+   pip install pymupdf xmlschema
    ```
-3. **Ollama** installerat på datorn med modellen `qwen2.5:7b`:
+3. **Ollama** med `qwen2.5:7b`:
    ```bash
    ollama pull qwen2.5:7b
    ```
-4. **Tailscale** (valfritt, för åtkomst utanför hemmanätverket).
-
----
+4. **Tailscale** (valfritt).
 
 ### Installation & Start
 
-1. **Klona repositoryt:**
-   ```bash
-   git clone https://github.com/Brottarbengt/invoicer-app.git
-   cd invoicer-app
-   ```
-
-2. **Installera beroenden:**
-   ```bash
-   npm install
-   ```
-
-3. **Bygg produktionsversionen:**
-   ```bash
-   npm run build
-   ```
-
-4. **Starta servern:**
-   ```bash
-   npx next start -H 0.0.0.0 -p 3000
-   ```
-
----
+```bash
+git clone https://github.com/Brottarbengt/invoicer-app.git
+cd invoicer-app
+npm install
+npm run build
+npx next start -H 0.0.0.0 -p 3000
+```
 
 ### Anslut & Logga in
 
-* **Från din dator:** Öppna [http://localhost:3000](http://localhost:3000)
-* **Från mobilen via lokalt Wi-Fi:** `http://<din-dators-lokala-ip>:3000` (t.ex. `http://192.168.1.14:3000`)
-* **Från mobilen var som helst via Tailscale:** `http://<din-tailscale-ip>:3000` (t.ex. `http://100.111.86.113:3000` eller `http://karlw:3000`)
+* **Dator:** [http://localhost:3000](http://localhost:3000)
+* **Mobil (Wi-Fi):** `http://<lokal-ip>:3000`
+* **Mobil (Tailscale):** `http://<tailscale-ip>:3000`
 
-**Inloggning:** Ange standard-PIN `1234` för Karl Westergren. Sessionen förblir aktiv i 30 dagar på din enhet.
+**Inloggning:** PIN `1234` för Karl Westergren (byt i produktion). Sessionen gäller 30 dagar.

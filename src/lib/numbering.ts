@@ -12,8 +12,7 @@ export function getNextCustomerNumber(db: DatabaseSync, userId: string): string 
     if (!Number.isNaN(n) && n > max) max = n;
   }
 
-  // Keep above known seed range (60/61) even if table was emptied
-  return String(Math.max(max, 59) + 1);
+  return String(max + 1);
 }
 
 /**
@@ -48,7 +47,7 @@ export function getNextInvoiceNumber(
     return `${cust}${String(maxSeq + 1).padStart(2, '0')}`;
   }
 
-  let max = 6000;
+  let max = 0;
   for (const row of usable) {
     const n = parseInt(String(row.invoice_number || '').replace(/\D/g, ''), 10);
     if (!Number.isNaN(n) && n > max) max = n;

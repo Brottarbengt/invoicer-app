@@ -27,8 +27,6 @@ import {
   User,
   ShieldCheck,
   Download,
-  Clock,
-  Sparkles,
   Info,
 } from 'lucide-react';
 

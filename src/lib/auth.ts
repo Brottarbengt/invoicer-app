@@ -133,13 +133,6 @@ export function verifyPin(userId: string, pin: string): boolean {
   return user.pin_hash === hashPin(pin);
 }
 
-export function changePin(userId: string, newPin: string): void {
-  const db = getDatabase();
-  const newHash = hashPin(newPin);
-  const now = new Date().toISOString();
-  db.prepare('UPDATE users SET pin_hash = ?, updated_at = ? WHERE id = ?').run(newHash, now, userId);
-}
-
 export function createNewUser(
   id: string,
   name: string,

@@ -135,26 +135,3 @@ export function formatSEK(value: number, showDecimals: boolean = true): string {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   return parts.join(',');
 }
-
-export function formatSEKWithCurrency(value: number, currency: string = 'SEK'): string {
-  return `${formatSEK(value)} ${currency}`;
-}
-
-export function addDaysToDate(dateStr: string, days: number): string {
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
-  } catch {
-    return dateStr;
-  }
-}
-
-export function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
