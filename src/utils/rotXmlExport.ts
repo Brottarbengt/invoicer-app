@@ -1,5 +1,5 @@
 import { InvoiceData } from '@/types/invoice';
-import { calculateInvoice } from './calculations';
+import { calculateInvoice, getItemLineTotal } from './calculations';
 import {
   validatePersonnummer,
   validatePaymentDate,
@@ -158,12 +158,11 @@ export function extractRotArendeData(
   (invoice.items || []).forEach((item) => {
     if (item.type !== 'item') return;
     const qty = Number(item.quantity) || 0;
-    const price = Number(item.unitPrice) || 0;
-    const lineTotal = qty * price;
+    const lineTotal = getItemLineTotal(item);
 
     if (item.isRotRut) {
-      // Räkna timmar
-      totalHours += qty;
+      // Räkna timmar (om angivet, annars minst 1 timme för fast belopp så XML valideras)
+      totalHours += qty > 0 ? qty : 1;
     } else {
       const desc = (item.description || '').toLowerCase();
       if (desc.includes('material') || desc.includes('beijer') || desc.includes('virke') || desc.includes('färg')) {

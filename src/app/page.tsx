@@ -9,9 +9,11 @@ import { Header } from '@/components/Header';
 import { SavedInvoicesModal } from '@/components/SavedInvoicesModal';
 import { PinLoginModal } from '@/components/PinLoginModal';
 import { RotExportModal } from '@/components/RotExportModal';
+import { CompanySettingsModal } from '@/components/CompanySettingsModal';
+import { InvoiceItemsEditor } from '@/components/InvoiceItemsEditor';
 import { downloadPdfDirectly } from '@/utils/pdfExport';
 import { applyRotFlagsToItems } from '@/utils/rotLabor';
-import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp, FileCode2 } from 'lucide-react';
+import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp, FileCode2, Building2 } from 'lucide-react';
 
 interface AuthUser {
   userId: string;
@@ -42,6 +44,7 @@ export default function Home() {
   const [savedInvoices, setSavedInvoices] = useState<InvoiceData[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isRotModalOpen, setIsRotModalOpen] = useState(false);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'customers' | 'assistant' | 'preview'>('assistant');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'info' } | null>(null);
@@ -51,6 +54,52 @@ export default function Home() {
   const showToast = (message: string, type: 'success' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSaveProfile = async (updatedProfile: SenderInfo) => {
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProfile),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const savedSender = data.senderProfile || updatedProfile;
+        if (currentUser) {
+          setCurrentUser({
+            ...currentUser,
+            senderProfile: savedSender,
+            name: savedSender.name || currentUser.name,
+          });
+        }
+        setInvoice((prev) => ({
+          ...prev,
+          sender: {
+            ...prev.sender,
+            ...savedSender,
+          },
+        }));
+        setAvailableUsers((prev) =>
+          prev.map((u) =>
+            u.id === currentUser?.userId
+              ? {
+                  ...u,
+                  name: savedSender.name || u.name,
+                  company: savedSender.company,
+                  logoUrl: savedSender.logoUrl,
+                }
+              : u
+          )
+        );
+        showToast('Företagsuppgifter och logotyp sparade!', 'success');
+        setIsCompanyModalOpen(false);
+      } else {
+        showToast(data.error || 'Kunde inte spara företagsuppgifter', 'info');
+      }
+    } catch {
+      showToast('Nätverksfel vid sparande av profil', 'info');
+    }
   };
 
   // Fetch customers from SQLite
@@ -465,7 +514,9 @@ export default function Home() {
         invoiceNumber={invoice.invoiceNumber}
         recipientName={invoice.recipient.name}
         userName={currentUser?.name}
-        companyName={currentUser?.senderProfile?.company}
+        companyName={currentUser?.senderProfile?.company || invoice.sender.company}
+        logoUrl={currentUser?.senderProfile?.logoUrl ?? invoice.sender.logoUrl}
+        onOpenCompanySettings={() => setIsCompanyModalOpen(true)}
         isRotEnabled={invoice.enableRot}
         onOpenRotModal={() => setIsRotModalOpen(true)}
         onLogout={handleLogout}
@@ -569,14 +620,15 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShowManualEditor(!showManualEditor)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                     showManualEditor
                       ? 'bg-red-50 text-red-700 border-red-200'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
+                  title="Öppna redigeraren för att ändra rader, antal, priser och fasta belopp"
                 >
                   <SlidersHorizontal className="w-3 h-3" />
-                  <span>Justera fält</span>
+                  <span>{showManualEditor ? 'Dölj redigerare' : `Redigera rader & fält (${invoice.items.length})`}</span>
                   {showManualEditor ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
 
@@ -606,12 +658,35 @@ export default function Home() {
 
             {/* Quick Manual Item Editor Drawer (if opened) */}
             {showManualEditor && (
-              <div className="w-full bg-white border border-slate-200 rounded-xl p-3 mb-3 shadow-xs text-xs space-y-2 animate-in fade-in duration-150">
-                <div className="font-bold text-slate-800 pb-1 border-b border-slate-100 flex justify-between items-center">
-                  <span>Snabbjustera fakturauppgifter</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Ändras live på fakturan</span>
+              <div className="w-full bg-white border border-slate-200 rounded-xl p-3.5 mb-3 shadow-xs text-xs space-y-3 animate-in fade-in duration-150">
+                <div className="font-bold text-slate-800 pb-1.5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">Snabbjustera fakturauppgifter & rader</span>
+                    <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">Ändras live på fakturan</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={invoice.enableRot}
+                        onChange={(e) => handleToggleRot(e.target.checked)}
+                        className="rounded text-red-600 focus:ring-red-500"
+                      />
+                      <span>ROT (30%)</span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCompanyModalOpen(true)}
+                      className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                    >
+                      <Building2 className="w-3 h-3 text-amber-500" />
+                      <span>Företagsinfo & logga</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
                     <label className="text-[10.5px] font-semibold text-slate-600">Fakturanummer / OCR:</label>
                     <input
@@ -649,40 +724,13 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="pt-1 flex items-center justify-between">
-                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={invoice.enableRot}
-                      onChange={(e) => handleToggleRot(e.target.checked)}
-                      className="rounded text-red-600 focus:ring-red-500"
-                    />
-                    <span>Aktivera 30% ROT-avdrag på arbetskostnad</span>
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updatedItems = [
-                        ...invoice.items,
-                        {
-                          id: `item-${Date.now()}`,
-                          type: 'item' as const,
-                          description: 'Ny post',
-                          subDescription: '',
-                          quantity: 1,
-                          unit: 'st',
-                          unitPrice: 0,
-                          vatRate: 25,
-                          isRotRut: false,
-                        },
-                      ];
-                      handleInvoiceChange({ ...invoice, items: updatedItems });
-                    }}
-                    className="text-[11px] font-bold text-red-600 hover:text-red-700 cursor-pointer"
-                  >
-                    + Lägg till manuell rad
-                  </button>
+                {/* Interactive Invoice Items Editor */}
+                <div className="pt-2 border-t border-slate-100">
+                  <InvoiceItemsEditor
+                    items={invoice.items}
+                    enableRot={invoice.enableRot}
+                    onChangeItems={(updatedItems) => handleInvoiceChange({ ...invoice, items: updatedItems })}
+                  />
                 </div>
               </div>
             )}
@@ -700,7 +748,10 @@ export default function Home() {
                 }}
                 className="transition-transform duration-150"
               >
-                <InvoicePreview invoice={invoice} />
+                <InvoicePreview
+                  invoice={invoice}
+                  onOpenEditor={() => setShowManualEditor(true)}
+                />
               </div>
             </div>
           </div>
@@ -728,6 +779,17 @@ export default function Home() {
         onUpdateInvoice={(updated) => handleInvoiceChange(updated)}
         onSuccessToast={(msg) => showToast(msg, 'success')}
       />
+
+      {/* Company Settings & Logo Modal */}
+      {currentUser?.senderProfile && (
+        <CompanySettingsModal
+          isOpen={isCompanyModalOpen}
+          onClose={() => setIsCompanyModalOpen(false)}
+          senderProfile={currentUser.senderProfile}
+          onSaveProfile={handleSaveProfile}
+          userName={currentUser.name}
+        />
+      )}
     </div>
   );
 }

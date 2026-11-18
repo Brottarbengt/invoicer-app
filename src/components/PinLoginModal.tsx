@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Lock, Delete, UserPlus, Check, X, Shield, ArrowRight, Smartphone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Lock, Delete, UserPlus, Check, X, Shield, ArrowRight, Smartphone, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+import { processImageFile } from '@/utils/image';
 
 interface PublicUser {
   id: string;
@@ -27,7 +28,9 @@ export const PinLoginModal: React.FC<PinLoginModalProps> = ({ availableUsers, on
   const [newCompany, setNewCompany] = useState('');
   const [newPersonNum, setNewPersonNum] = useState('');
   const [newPin, setNewPin] = useState('');
+  const [newLogoUrl, setNewLogoUrl] = useState('');
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const registerFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (availableUsers.length > 0 && !selectedUserId) {
@@ -125,6 +128,7 @@ export const PinLoginModal: React.FC<PinLoginModalProps> = ({ availableUsers, on
           companyName: newCompany.trim(),
           personNumber: newPersonNum.trim(),
           pin: newPin,
+          logoUrl: newLogoUrl,
         }),
       });
 
@@ -150,10 +154,32 @@ export const PinLoginModal: React.FC<PinLoginModalProps> = ({ availableUsers, on
       <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
         {/* Top Header */}
         <div className="p-5 pb-3 text-center bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
-          <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl mx-auto mb-2.5 shadow-md shadow-red-500/20">
-            KW
-          </div>
-          <h2 className="text-base font-bold text-slate-900 leading-tight">KW&apos;s Bygg Fakturering</h2>
+          {selectedUser?.logoUrl ? (
+            <div className="h-12 flex items-center justify-center mb-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedUser.logoUrl}
+                alt={selectedUser.company || selectedUser.name}
+                className="max-h-12 max-w-[160px] object-contain"
+              />
+            </div>
+          ) : selectedUser?.id === 'karl' ? (
+            <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl mx-auto mb-2.5 shadow-md shadow-red-500/20">
+              KW
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-lg mx-auto mb-2.5 shadow-md">
+              {(selectedUser?.company || selectedUser?.name || 'F')[0].toUpperCase()}
+            </div>
+          )}
+
+          <h2 className="text-base font-bold text-slate-900 leading-tight">
+            {selectedUser
+              ? selectedUser.company
+                ? `${selectedUser.company} Fakturering`
+                : `${selectedUser.name} Fakturering`
+              : 'Fakturering'}
+          </h2>
           <p className="text-[11px] text-slate-400 mt-0.5">Ange PIN-kod för att logga in</p>
 
           {/* User selector */}
@@ -343,6 +369,59 @@ export const PinLoginModal: React.FC<PinLoginModalProps> = ({ availableUsers, on
                   placeholder="****"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-mono text-center text-sm"
                 />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Logotyp (valfritt – lämna tom för endast text)
+                </label>
+                {newLogoUrl ? (
+                  <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-8 bg-white border border-slate-200 rounded flex items-center justify-center p-0.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={newLogoUrl} alt="Logga" className="max-h-full max-w-full object-contain" />
+                      </div>
+                      <span className="text-[11px] text-slate-600 font-medium">Logotyp vald</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewLogoUrl('')}
+                      className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                      title="Ta bort logga"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      ref={registerFileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            const dataUrl = await processImageFile(file);
+                            setNewLogoUrl(dataUrl);
+                          } catch {
+                            setRegisterError('Kunde inte läsa in bildfilen');
+                          }
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => registerFileRef.current?.click()}
+                      className="w-full py-1.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Välj bildfil... (PNG, JPG, SVG)</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {registerError && (

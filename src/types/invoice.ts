@@ -9,6 +9,7 @@ export interface InvoiceItem {
   quantity: number | null;
   unit: string;
   unitPrice: number | null;
+  totalPrice?: number | null;
   vatRate: number; // 25, 12, 6, 0
   isRotRut?: boolean;
 }
@@ -143,7 +144,7 @@ export function createEmptyInvoice(invoiceNumber: string = ''): InvoiceData {
     latePaymentInterest: '8%',
     deliveryTerms: '',
     deliveryMethod: '',
-    ourReference: 'Karl',
+    ourReference: '',
     yourReference: '',
     customerNumber: '',
     orderNumber: '',
@@ -151,22 +152,22 @@ export function createEmptyInvoice(invoiceNumber: string = ''): InvoiceData {
     projectTitle: '',
     projectDates: `Utförda ${today}`,
     sender: {
-      name: 'Karl Westergren',
-      company: "KW's BYGG",
-      address: 'Moravägen 6',
-      zipAndCity: '821 41 Bollnäs',
-      phone: '073-026 32 94',
-      email: 'Karlvestergren@gmail.com',
+      name: '',
+      company: '',
+      address: '',
+      zipAndCity: '',
+      phone: '',
+      email: '',
       website: '',
-      orgNumber: '841109-7515',
-      vatNumber: 'SE841109751501',
-      bankgiro: '5227-5153',
+      orgNumber: '',
+      vatNumber: '',
+      bankgiro: '',
       plusgiro: '',
       bankAccount: '',
       iban: '',
       swiftBic: '',
       taxStatus: 'Godkänd för F-skatt',
-      logoUrl: '/kws-bygg-logo.png',
+      logoUrl: '',
       logoWidth: 160,
     },
     recipient: {

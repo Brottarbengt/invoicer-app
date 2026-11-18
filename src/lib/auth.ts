@@ -36,43 +36,48 @@ export function getSessionUser(token?: string | null): UserSession | null {
     .prepare('SELECT * FROM user_profiles WHERE user_id = ?')
     .get(session.user_id) as any;
 
+  const isKarl = session.user_id === 'karl';
+
   const senderProfile: SenderInfo = profile
     ? {
         name: profile.name || session.name,
-        company: profile.company || "KW's BYGG",
-        address: profile.address || '',
-        zipAndCity: profile.zip_and_city || '',
-        phone: profile.phone || '',
-        email: profile.email || '',
+        company: profile.company || (isKarl ? "KW's BYGG" : session.name),
+        address: profile.address || (isKarl ? 'Moravägen 6' : ''),
+        zipAndCity: profile.zip_and_city || (isKarl ? '821 41 Bollnäs' : ''),
+        phone: profile.phone || (isKarl ? '073-026 32 94' : ''),
+        email: profile.email || (isKarl ? 'Karlvestergren@gmail.com' : ''),
         website: profile.website || '',
-        orgNumber: profile.org_number || '',
-        vatNumber: profile.vat_number || '',
-        bankgiro: profile.bankgiro || '',
+        orgNumber: profile.org_number || (isKarl ? '841109-7515' : ''),
+        vatNumber: profile.vat_number || (isKarl ? 'SE841109751501' : ''),
+        bankgiro: profile.bankgiro || (isKarl ? '5227-5153' : ''),
         plusgiro: profile.plusgiro || '',
         bankAccount: profile.bank_account || '',
         iban: profile.iban || '',
         swiftBic: profile.swift_bic || '',
         taxStatus: profile.tax_status || 'Godkänd för F-skatt',
-        logoUrl: profile.logo_url || '/kws-bygg-logo.png',
+        logoUrl:
+          profile.logo_url !== null && profile.logo_url !== undefined
+            ? profile.logo_url
+            : (isKarl ? '/kws-bygg-logo.png' : ''),
         logoWidth: profile.logo_width || 160,
       }
     : {
         name: session.name,
-        company: "KW's BYGG",
-        address: 'Moravägen 6',
-        zipAndCity: '821 41 Bollnäs',
-        phone: '073-026 32 94',
-        email: 'Karlvestergren@gmail.com',
+        company: isKarl ? "KW's BYGG" : session.name,
+        address: isKarl ? 'Moravägen 6' : '',
+        zipAndCity: isKarl ? '821 41 Bollnäs' : '',
+        phone: isKarl ? '073-026 32 94' : '',
+        email: isKarl ? 'Karlvestergren@gmail.com' : '',
         website: '',
-        orgNumber: '841109-7515',
-        vatNumber: 'SE841109751501',
-        bankgiro: '5227-5153',
+        orgNumber: isKarl ? '841109-7515' : '',
+        vatNumber: isKarl ? 'SE841109751501' : '',
+        bankgiro: isKarl ? '5227-5153' : '',
         plusgiro: '',
         bankAccount: '',
         iban: '',
         swiftBic: '',
         taxStatus: 'Godkänd för F-skatt',
-        logoUrl: '/kws-bygg-logo.png',
+        logoUrl: isKarl ? '/kws-bygg-logo.png' : '',
         logoWidth: 160,
       };
 
@@ -98,12 +103,19 @@ export function listPublicUsers(): { id: string; name: string; company: string; 
     )
     .all() as any[];
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    company: r.company || "KW's BYGG",
-    logoUrl: r.logo_url || '/kws-bygg-logo.png',
-  }));
+  return rows.map((r) => {
+    const isKarl = r.id === 'karl';
+    const logoUrl =
+      r.logo_url !== null && r.logo_url !== undefined
+        ? r.logo_url
+        : (isKarl ? '/kws-bygg-logo.png' : '');
+    return {
+      id: r.id,
+      name: r.name,
+      company: r.company || (isKarl ? "KW's BYGG" : r.name),
+      logoUrl,
+    };
+  });
 }
 
 export function createSession(userId: string): { token: string; expiresAt: Date } {
@@ -138,7 +150,8 @@ export function createNewUser(
   name: string,
   pin: string,
   companyName: string = '',
-  personNumber: string = ''
+  personNumber: string = '',
+  logoUrl: string = ''
 ): void {
   const db = getDatabase();
   const now = new Date().toISOString();
@@ -172,7 +185,7 @@ export function createNewUser(
     '',
     '',
     'Godkänd för F-skatt',
-    '',
+    logoUrl || '',
     160,
     now
   );

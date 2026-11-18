@@ -10,6 +10,7 @@ import {
   Sparkles,
   FileCheck2,
   FileCode2,
+  Building2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,6 +18,8 @@ interface HeaderProps {
   recipientName: string;
   userName?: string;
   companyName?: string;
+  logoUrl?: string;
+  onOpenCompanySettings?: () => void;
   isRotEnabled?: boolean;
   onOpenRotModal?: () => void;
   onLogout?: () => void;
@@ -35,6 +38,8 @@ export const Header: React.FC<HeaderProps> = ({
   recipientName,
   userName,
   companyName,
+  logoUrl,
+  onOpenCompanySettings,
   isRotEnabled,
   onOpenRotModal,
   onLogout,
@@ -47,19 +52,43 @@ export const Header: React.FC<HeaderProps> = ({
   activeMobileTab,
   onSelectMobileTab,
 }) => {
+  const brandTitle = companyName
+    ? `${companyName} Fakturering`
+    : userName
+    ? `${userName} Fakturering`
+    : 'Fakturering';
+
   return (
     <header className="sticky top-0 z-30 bg-slate-900 text-white shadow-md border-b border-slate-800 no-print">
       <div className="max-w-[1700px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
         {/* Brand & Active Invoice info */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-black text-sm text-white shadow-xs">
-            KW
-          </div>
+          {logoUrl ? (
+            <button
+              type="button"
+              onClick={onOpenCompanySettings}
+              title="Klicka för att ändra logga eller företagsuppgifter"
+              className="flex items-center justify-center p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 transition-colors cursor-pointer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={companyName || userName || 'Logotyp'}
+                className="h-8 max-h-8 w-auto max-w-[130px] object-contain rounded"
+              />
+            </button>
+          ) : null}
+
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold tracking-tight text-white">
-                KW&apos;s Bygg Fakturering
-              </h1>
+              <button
+                type="button"
+                onClick={onOpenCompanySettings}
+                title="Klicka för att ändra företagsnamn, logga eller uppgifter"
+                className="text-sm font-bold tracking-tight text-white hover:text-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer text-left"
+              >
+                <span>{brandTitle}</span>
+              </button>
               <span className="text-[10px] font-mono font-bold bg-slate-800 text-red-400 border border-slate-700 px-2 py-0.5 rounded-full">
                 #{invoiceNumber || '—'}
               </span>
@@ -72,6 +101,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          {onOpenCompanySettings && (
+            <button
+              type="button"
+              onClick={onOpenCompanySettings}
+              title="Hantera företagsinställningar och logotyp"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Företag & Logga</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onNextInvoice}

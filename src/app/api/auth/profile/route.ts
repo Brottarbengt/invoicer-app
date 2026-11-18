@@ -3,6 +3,21 @@ import { getSessionUser } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { SenderInfo } from '@/types/invoice';
 
+export async function GET(req: NextRequest) {
+  try {
+    const token = req.cookies.get('invoicer_session')?.value;
+    const session = getSessionUser(token);
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Ej auktoriserad' }, { status: 401 });
+    }
+
+    return NextResponse.json({ success: true, senderProfile: session.senderProfile });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get('invoicer_session')?.value;
@@ -15,6 +30,11 @@ export async function POST(req: NextRequest) {
     const sender: SenderInfo = await req.json();
     const db = getDatabase();
     const now = new Date().toISOString();
+
+    const logoUrl =
+      sender.logoUrl !== undefined
+        ? sender.logoUrl
+        : (session.userId === 'karl' ? '/kws-bygg-logo.png' : '');
 
     db.prepare(`
       INSERT INTO user_profiles (
@@ -58,12 +78,14 @@ export async function POST(req: NextRequest) {
       sender.iban || '',
       sender.swiftBic || '',
       sender.taxStatus || 'Godkänd för F-skatt',
-      sender.logoUrl || '/kws-bygg-logo.png',
+      logoUrl,
       sender.logoWidth || 160,
       now
     );
 
-    return NextResponse.json({ success: true });
+    const updatedUser = getSessionUser(token);
+
+    return NextResponse.json({ success: true, senderProfile: updatedUser?.senderProfile });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

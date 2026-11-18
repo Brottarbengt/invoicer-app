@@ -68,6 +68,21 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Update greeting with active user name
+  useEffect(() => {
+    const firstName = currentInvoice.sender.name ? currentInvoice.sender.name.split(' ')[0] : 'där';
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === 'welcome'
+          ? {
+              ...m,
+              text: `Hej ${firstName}! Jag är din lokala AI-assistent kopplad till Ollama på din dator.\n\nKlistra in vad du gjort, släpp in en PDF-faktura från en kollega eller Beijer Bygg, så plockar jag fram alla rader, milersättning, material och räknar 30% ROT direkt!`,
+            }
+          : m
+      )
+    );
+  }, [currentInvoice.sender.name]);
+
   // Check Ollama status on mount and every 15s
   useEffect(() => {
     const checkStatus = async () => {

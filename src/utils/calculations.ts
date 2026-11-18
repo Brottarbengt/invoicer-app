@@ -23,6 +23,41 @@ export interface InvoiceCalculation {
   totalToPayAfterRot: number;
 }
 
+export function getItemLineTotal(item: InvoiceItem): number {
+  if (item.type !== 'item') return 0;
+
+  const hasQty =
+    item.quantity !== null &&
+    item.quantity !== undefined &&
+    item.quantity !== ('' as any) &&
+    !isNaN(Number(item.quantity));
+
+  const hasPrice =
+    item.unitPrice !== null &&
+    item.unitPrice !== undefined &&
+    item.unitPrice !== ('' as any) &&
+    !isNaN(Number(item.unitPrice));
+
+  if (hasQty && hasPrice) {
+    return Number(item.quantity) * Number(item.unitPrice);
+  }
+
+  if (
+    item.totalPrice !== null &&
+    item.totalPrice !== undefined &&
+    item.totalPrice !== ('' as any) &&
+    !isNaN(Number(item.totalPrice))
+  ) {
+    return Number(item.totalPrice);
+  }
+
+  if (hasPrice && !hasQty) {
+    return Number(item.unitPrice);
+  }
+
+  return 0;
+}
+
 export function calculateInvoice(invoice: InvoiceData): InvoiceCalculation {
   let subtotalItems = 0;
   let rotLaborBase = 0;
@@ -31,8 +66,8 @@ export function calculateInvoice(invoice: InvoiceData): InvoiceCalculation {
   const rateTotals: Record<number, number> = { 25: 0, 12: 0, 6: 0, 0: 0 };
 
   invoice.items.forEach((item: InvoiceItem) => {
-    if (item.type === 'item' && item.quantity !== null && item.unitPrice !== null) {
-      const lineTotal = Number(item.quantity) * Number(item.unitPrice);
+    if (item.type === 'item') {
+      const lineTotal = getItemLineTotal(item);
       subtotalItems += lineTotal;
 
       const rate = [25, 12, 6, 0].includes(item.vatRate) ? item.vatRate : 25;

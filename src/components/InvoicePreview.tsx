@@ -2,14 +2,25 @@
 
 import React from 'react';
 import { InvoiceData } from '@/types/invoice';
-import { calculateInvoice, formatSEK } from '@/utils/calculations';
+import { calculateInvoice, formatSEK, getItemLineTotal } from '@/utils/calculations';
 
 interface InvoicePreviewProps {
   invoice: InvoiceData;
   scale?: number;
+  onOpenEditor?: () => void;
 }
 
-export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
+function extractCity(zipAndCity?: string): string {
+  if (!zipAndCity) return '';
+  const cleaned = zipAndCity
+    .replace(/^(?:SE[-\s]*)?\d{3}\s*\d{2}\s*[,.-]?\s*/i, '')
+    .replace(/^(?:SE[-\s]*)?\d{5}\s*[,.-]?\s*/i, '')
+    .replace(/^[\d\s,-]+/, '')
+    .trim();
+  return cleaned || zipAndCity;
+}
+
+export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onOpenEditor }) => {
   const calc = calculateInvoice(invoice);
 
   // ROT calculations
@@ -46,21 +57,23 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={invoice.sender.logoUrl}
-                alt={invoice.sender.company || "KW's Bygg"}
-                className="h-12 w-auto object-contain"
+                alt={invoice.sender.company || invoice.sender.name || 'Logotyp'}
+                style={{
+                  maxHeight: '56px',
+                  width: invoice.sender.logoWidth ? `${Math.min(invoice.sender.logoWidth, 240)}px` : 'auto',
+                }}
+                className="h-auto max-h-14 object-contain"
               />
-            ) : (
-              <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-black text-xl rounded">
-                KW
-              </div>
-            )}
+            ) : null}
             <div className="flex flex-col">
-              <span className="text-lg font-black text-slate-900 tracking-tight leading-tight">
-                {invoice.sender.company || "KW's Bygg"}
+              <span className="text-xl font-black text-slate-900 tracking-tight leading-tight">
+                {invoice.sender.company || invoice.sender.name || 'Faktura'}
               </span>
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-                {invoice.sender.name || 'Karl Westergren'} • Bygg & Snickeri
-              </span>
+              {invoice.sender.name && invoice.sender.company && (
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                  {invoice.sender.name}
+                </span>
+              )}
             </div>
           </div>
 
@@ -124,14 +137,23 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               Utställare / Avsändare
             </div>
             <div className="text-[14px] font-bold text-slate-900 mb-0.5">
-              {invoice.sender.name || 'Karl Westergren'}
+              {invoice.sender.company || invoice.sender.name || 'Avsändare'}
             </div>
             <div className="text-[11.5px] text-slate-600 leading-snug space-y-0.5">
-              <div>{invoice.sender.address}, {invoice.sender.zipAndCity}</div>
-              <div><strong className="text-slate-700">Tel:</strong> {invoice.sender.phone}</div>
-              <div><strong className="text-slate-700">E-post:</strong> {invoice.sender.email}</div>
+              {invoice.sender.company && invoice.sender.name && (
+                <div><strong className="text-slate-700">Kontakt:</strong> {invoice.sender.name}</div>
+              )}
+              {(invoice.sender.address || invoice.sender.zipAndCity) && (
+                <div>{invoice.sender.address}{invoice.sender.zipAndCity ? `, ${invoice.sender.zipAndCity}` : ''}</div>
+              )}
+              {invoice.sender.phone && (
+                <div><strong className="text-slate-700">Tel:</strong> {invoice.sender.phone}</div>
+              )}
+              {invoice.sender.email && (
+                <div><strong className="text-slate-700">E-post:</strong> {invoice.sender.email}</div>
+              )}
               <div className="text-slate-500 font-medium pt-0.5">
-                {invoice.sender.taxStatus || 'Innehar F-skattsedel'}
+                {invoice.sender.taxStatus || 'Godkänd för F-skatt'}
               </div>
             </div>
           </div>
@@ -170,8 +192,8 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
           </div>
           <div className="flex flex-col">
             <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wide">Referenser</span>
-            <span className="font-bold text-slate-900 text-xs mt-0.5">
-              Vår: {invoice.ourReference || 'Karl'} {invoice.yourReference ? `/ Er: ${invoice.yourReference}` : ''}
+            <span className="font-bold text-slate-900 text-xs mt-0.5 truncate">
+              Vår: {invoice.ourReference || invoice.sender.name || '—'} {invoice.yourReference ? `/ Er: ${invoice.yourReference}` : ''}
             </span>
           </div>
         </div>
@@ -192,14 +214,28 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               {invoice.items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-10 text-center text-slate-400 italic text-xs">
-                    Inga fakturarader än. Klistra in underlag i AI-assistenten för att generera rader.
+                    <div>Inga fakturarader än. Klistra in underlag i AI-assistenten för att generera rader.</div>
+                    {onOpenEditor && (
+                      <button
+                        type="button"
+                        onClick={onOpenEditor}
+                        className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-semibold border border-red-200 transition-colors cursor-pointer not-italic"
+                      >
+                        + Lägg till rad manuellt
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
                 invoice.items.map((item, idx) => {
                 if (item.type === 'header') {
                   return (
-                    <tr key={item.id || idx} className="bg-slate-50/80 font-bold text-slate-900">
+                    <tr
+                      key={item.id || idx}
+                      onClick={onOpenEditor}
+                      title={onOpenEditor ? 'Klicka för att redigera raden' : undefined}
+                      className={`bg-slate-50/80 font-bold text-slate-900 ${onOpenEditor ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                    >
                       <td colSpan={5} className="py-1.5 px-3 text-xs tracking-tight text-red-700">
                         {item.description}
                       </td>
@@ -209,7 +245,12 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
 
                 if (item.type === 'text') {
                   return (
-                    <tr key={item.id || idx} className="text-slate-600 italic">
+                    <tr
+                      key={item.id || idx}
+                      onClick={onOpenEditor}
+                      title={onOpenEditor ? 'Klicka för att redigera raden' : undefined}
+                      className={`text-slate-600 italic ${onOpenEditor ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                    >
                       <td colSpan={5} className="py-1 px-3 text-[11px]">
                         {item.description}
                       </td>
@@ -217,13 +258,26 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
                   );
                 }
 
-                const lineTotal =
-                  item.quantity !== null && item.unitPrice !== null
-                    ? item.quantity * item.unitPrice
-                    : 0;
+                const lineTotal = getItemLineTotal(item);
+                const hasQty =
+                  item.quantity !== null &&
+                  item.quantity !== undefined &&
+                  item.quantity !== ('' as any) &&
+                  !isNaN(Number(item.quantity));
+                const hasUnitPrice =
+                  item.unitPrice !== null &&
+                  item.unitPrice !== undefined &&
+                  item.unitPrice !== ('' as any) &&
+                  !isNaN(Number(item.unitPrice));
+                const hasUnit = Boolean(item.unit && item.unit.trim());
 
                 return (
-                  <tr key={item.id || idx} className="hover:bg-slate-50/50">
+                  <tr
+                    key={item.id || idx}
+                    onClick={onOpenEditor}
+                    title={onOpenEditor ? 'Klicka för att redigera raden' : undefined}
+                    className={`hover:bg-slate-50/70 transition-colors ${onOpenEditor ? 'cursor-pointer' : ''}`}
+                  >
                     <td className="py-1.5 px-3">
                       <div className="font-bold text-slate-900 flex items-center gap-1.5">
                         <span>{item.description}</span>
@@ -240,16 +294,16 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
                       )}
                     </td>
                     <td className="py-1.5 px-3 text-right font-medium text-slate-800">
-                      {item.quantity !== null ? formatSEK(item.quantity, false) : '—'}
+                      {hasQty ? formatSEK(Number(item.quantity), false) : ''}
                     </td>
                     <td className="py-1.5 px-3 text-center text-slate-500">
-                      {item.unit || 'st'}
+                      {hasUnit ? item.unit : ''}
                     </td>
                     <td className="py-1.5 px-3 text-right font-medium text-slate-800">
-                      {item.unitPrice !== null ? `${formatSEK(item.unitPrice)} kr` : '—'}
+                      {hasUnitPrice ? `${formatSEK(Number(item.unitPrice))} kr` : ''}
                     </td>
                     <td className="py-1.5 px-3 text-right font-bold text-slate-900">
-                      {formatSEK(lineTotal)} kr
+                      {lineTotal > 0 || hasQty || hasUnitPrice ? `${formatSEK(lineTotal)} kr` : ''}
                     </td>
                   </tr>
                 );
@@ -324,7 +378,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
               <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-[9.5px] text-emerald-900 leading-snug">
                 <strong>Information om ROT-avdrag:</strong>
                 <br />
-                Du betalar fakturans nettosumma ({formatSEK(calc.totalToPayAfterRot)} kr). {invoice.sender.name || "Karl Westergren"} ansöker därefter om resterande {formatSEK(calc.rotDeduction)} kr direkt från Skatteverket
+                Du betalar fakturans nettosumma ({formatSEK(calc.totalToPayAfterRot)} kr). {invoice.sender.company || invoice.sender.name || 'Avsändaren'} ansöker därefter om resterande {formatSEK(calc.rotDeduction)} kr direkt från Skatteverket
                 {invoice.recipient.propertyDesignation ? ` för fastighet ${invoice.recipient.propertyDesignation}` : ''}
                 {invoice.recipient.orgOrPersonNumber ? ` (personnr ${invoice.recipient.orgOrPersonNumber})` : ''}.
                 Vid eventuellt avslag debiteras kvarvarande belopp.
@@ -393,27 +447,30 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice }) => {
       <div className="pt-2 border-t border-slate-200 grid grid-cols-4 gap-3 text-[9px] text-slate-500 leading-tight mt-auto">
         <div>
           <div className="font-bold text-slate-800 uppercase tracking-wider mb-0.5">Företag</div>
-          <div>{invoice.sender.company || "KW's Bygg"}</div>
-          <div>{invoice.sender.name || 'Karl Westergren EF'}</div>
-          <div>{invoice.sender.taxStatus || 'Innehar F-skattsedel'}</div>
+          <div className="font-medium text-slate-700">{invoice.sender.company || invoice.sender.name || '—'}</div>
+          {invoice.sender.company && invoice.sender.name && <div>{invoice.sender.name}</div>}
+          <div>{invoice.sender.taxStatus || 'Godkänd för F-skatt'}</div>
         </div>
         <div>
           <div className="font-bold text-slate-800 uppercase tracking-wider mb-0.5">Registrering</div>
-          <div>Org.nr: {invoice.sender.orgNumber || '841109-7515'}</div>
-          <div>Momsnr: {invoice.sender.vatNumber || 'SE841109751501'}</div>
-          <div>Säte: Bollnäs</div>
+          <div>Org.nr: {invoice.sender.orgNumber || '—'}</div>
+          <div>Momsnr: {invoice.sender.vatNumber || '—'}</div>
+          {invoice.sender.zipAndCity && <div>Ort: {extractCity(invoice.sender.zipAndCity)}</div>}
         </div>
         <div>
           <div className="font-bold text-slate-800 uppercase tracking-wider mb-0.5">Kontakt</div>
-          <div>Tel: {invoice.sender.phone || '073-026 32 94'}</div>
-          <div>{invoice.sender.email || 'Karlvestergren@gmail.com'}</div>
-          <div>{invoice.sender.address}, {invoice.sender.zipAndCity}</div>
+          <div>Tel: {invoice.sender.phone || '—'}</div>
+          <div>{invoice.sender.email || '—'}</div>
+          {(invoice.sender.address || invoice.sender.zipAndCity) && (
+            <div>{invoice.sender.address}{invoice.sender.zipAndCity ? `, ${invoice.sender.zipAndCity}` : ''}</div>
+          )}
         </div>
         <div>
           <div className="font-bold text-slate-800 uppercase tracking-wider mb-0.5">Betalsätt</div>
           <div>Bankgiro: {invoice.sender.bankgiro || '—'}</div>
+          {invoice.sender.plusgiro && <div>Plusgiro: {invoice.sender.plusgiro}</div>}
+          {invoice.sender.bankAccount && <div>Konto: {invoice.sender.bankAccount}</div>}
           <div>Villkor: {invoice.paymentTerms || '14 dagar netto'}</div>
-          <div>Valuta: {invoice.currency || 'SEK'}</div>
         </div>
       </div>
     </div>
