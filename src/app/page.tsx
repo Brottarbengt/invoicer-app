@@ -10,10 +10,9 @@ import { SavedInvoicesModal } from '@/components/SavedInvoicesModal';
 import { PinLoginModal } from '@/components/PinLoginModal';
 import { RotExportModal } from '@/components/RotExportModal';
 import { CompanySettingsModal } from '@/components/CompanySettingsModal';
-import { InvoiceItemsEditor } from '@/components/InvoiceItemsEditor';
 import { downloadPdfDirectly } from '@/utils/pdfExport';
 import { applyRotFlagsToItems } from '@/utils/rotLabor';
-import { Check, ZoomIn, ZoomOut, Sparkles, SlidersHorizontal, ChevronDown, ChevronUp, FileCode2, Building2 } from 'lucide-react';
+import { Check, ZoomIn, ZoomOut, Sparkles, FileCode2, Building2 } from 'lucide-react';
 
 interface AuthUser {
   userId: string;
@@ -49,7 +48,6 @@ export default function Home() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'info' } | null>(null);
   const [previewZoom, setPreviewZoom] = useState<number>(0.78);
-  const [showManualEditor, setShowManualEditor] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'info' = 'success') => {
     setToast({ message, type });
@@ -619,17 +617,12 @@ export default function Home() {
 
                 <button
                   type="button"
-                  onClick={() => setShowManualEditor(!showManualEditor)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
-                    showManualEditor
-                      ? 'bg-red-50 text-red-700 border-red-200'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                  }`}
-                  title="Öppna redigeraren för att ändra rader, antal, priser och fasta belopp"
+                  onClick={() => setIsCompanyModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                  title="Hantera företagsinställningar och logotyp"
                 >
-                  <SlidersHorizontal className="w-3 h-3" />
-                  <span>{showManualEditor ? 'Dölj redigerare' : `Redigera rader & fält (${invoice.items.length})`}</span>
-                  {showManualEditor ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  <Building2 className="w-3 h-3 text-amber-500" />
+                  <span>Företag & Logga</span>
                 </button>
 
                 <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-0.5">
@@ -656,85 +649,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Quick Manual Item Editor Drawer (if opened) */}
-            {showManualEditor && (
-              <div className="w-full bg-white border border-slate-200 rounded-xl p-3.5 mb-3 shadow-xs text-xs space-y-3 animate-in fade-in duration-150">
-                <div className="font-bold text-slate-800 pb-1.5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Snabbjustera fakturauppgifter & rader</span>
-                    <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">Ändras live på fakturan</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={invoice.enableRot}
-                        onChange={(e) => handleToggleRot(e.target.checked)}
-                        className="rounded text-red-600 focus:ring-red-500"
-                      />
-                      <span>ROT (30%)</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsCompanyModalOpen(true)}
-                      className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
-                    >
-                      <Building2 className="w-3 h-3 text-amber-500" />
-                      <span>Företagsinfo & logga</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-slate-600">Fakturanummer / OCR:</label>
-                    <input
-                      type="text"
-                      value={invoice.invoiceNumber || ''}
-                      onChange={(e) =>
-                        handleInvoiceChange({
-                          ...invoice,
-                          invoiceNumber: e.target.value.replace(/[^\d]/g, ''),
-                        })
-                      }
-                      placeholder="t.ex. 6002"
-                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-slate-600">Projektnamn:</label>
-                    <input
-                      type="text"
-                      value={invoice.projectTitle || ''}
-                      onChange={(e) => handleInvoiceChange({ ...invoice, projectTitle: e.target.value })}
-                      placeholder="t.ex. Kaminmontering"
-                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-slate-600">Projektperiod / Datum:</label>
-                    <input
-                      type="text"
-                      value={invoice.projectDates || ''}
-                      onChange={(e) => handleInvoiceChange({ ...invoice, projectDates: e.target.value })}
-                      placeholder="t.ex. Utförda 2026-11-02"
-                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Interactive Invoice Items Editor */}
-                <div className="pt-2 border-t border-slate-100">
-                  <InvoiceItemsEditor
-                    items={invoice.items}
-                    enableRot={invoice.enableRot}
-                    onChangeItems={(updatedItems) => handleInvoiceChange({ ...invoice, items: updatedItems })}
-                  />
-                </div>
-              </div>
-            )}
-
             {/* A4 Sheet Display Container */}
             <div
               className="w-full flex justify-center overflow-x-auto py-1"
@@ -750,7 +664,7 @@ export default function Home() {
               >
                 <InvoicePreview
                   invoice={invoice}
-                  onOpenEditor={() => setShowManualEditor(true)}
+                  onUpdateInvoice={handleInvoiceChange}
                 />
               </div>
             </div>

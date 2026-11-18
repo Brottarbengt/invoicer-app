@@ -5,6 +5,19 @@ import html2canvas from 'html2canvas';
 function prepareElementForCapture(element: HTMLElement): () => void {
   const restores: Array<() => void> = [];
 
+  // Temporarily clear placeholders so html2canvas never renders any placeholder text on PDF
+  const placeholderInputs = element.querySelectorAll('input[placeholder], textarea[placeholder]');
+  placeholderInputs.forEach((input) => {
+    const el = input as HTMLInputElement | HTMLTextAreaElement;
+    const ph = el.getAttribute('placeholder');
+    if (ph) {
+      el.setAttribute('placeholder', '');
+      restores.push(() => {
+        el.setAttribute('placeholder', ph);
+      });
+    }
+  });
+
   let node: HTMLElement | null = element;
   while (node) {
     const computed = window.getComputedStyle(node);
@@ -54,6 +67,11 @@ export async function downloadPdfDirectly(elementId: string, filename: string): 
     return false;
   }
 
+  // Blur any active input to remove focus rings
+  if (typeof document !== 'undefined' && document.activeElement && 'blur' in document.activeElement) {
+    (document.activeElement as HTMLElement).blur();
+  }
+
   const restore = prepareElementForCapture(element);
   await waitForLayout();
 
@@ -74,6 +92,7 @@ export async function downloadPdfDirectly(elementId: string, filename: string): 
       scrollY: 0,
       x: 0,
       y: 0,
+      ignoreElements: (el) => el.classList?.contains('no-print') || el.classList?.contains('print:hidden'),
     });
 
     element.style.boxShadow = originalShadow;

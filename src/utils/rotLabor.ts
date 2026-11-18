@@ -1,42 +1,45 @@
 import { InvoiceItem } from '@/types/invoice';
 
+/** Non-labor items (materials, travel, equipment, fees) that may never receive ROT. */
+export function isNonLaborItem(item: InvoiceItem): boolean {
+  if (item.type && item.type !== 'item') return true;
+  const desc = `${item.description || ''} ${item.subDescription || ''}`.toLowerCase();
+  return /material|beijer|k-bygg|byggmax|optimera|ahlsell|dahl|xl-bygg|hägg|servicebil|bilersättning|miler|resor|framkör|förbruk|hyra|maskin|cramo|ramirent|skylift|skruv|spik|plyfa|gips|virke|regel|panel|isolering|glasull|fog|lim|färg|pensel|frakt|transport|tippavgift|container|sophämt|sophanter/.test(
+    desc
+  );
+}
+
 /** Labor rows that may receive ROT when enableRot is on. */
 export function isRotEligibleLabor(item: InvoiceItem): boolean {
   if (item.type && item.type !== 'item') return false;
+  if (isNonLaborItem(item)) return false;
 
   const unit = (item.unit || '').toLowerCase().trim();
   const desc = `${item.description || ''} ${item.subDescription || ''}`.toLowerCase();
 
-  // Never ROT on materials / travel / fees
+  if (unit === 'tim' || unit === 'h' || unit === 'timme' || unit === 'timmar') return true;
   if (
-    /material|beijer|k-bygg|hägg|servicebil|miler|framkör|förbruk|hyra|cramo|skylift|skruv|plyfa|glasull|isolering/.test(
+    /snicker|arbetstim|snickararbete|kakling|montage|\barbete\b|måleri|målning|tapetser|installation|montering|rivning|elarbete|vvs|reparation|slipning|städ|fönsterbyte|dörrbyte|takläggning/.test(
       desc
     )
   ) {
-    return false;
+    return true;
   }
-
-  if (unit === 'tim' || unit === 'h' || unit === 'timme' || unit === 'timmar') return true;
-  if (/snicker|arbetstim|snickararbete|kakling|montage|\barbete\b/.test(desc)) return true;
 
   return Boolean(item.isRotRut);
 }
 
 /** When ROT is enabled, mark eligible labor rows with isRotRut. */
 export function applyRotFlagsToItems(items: InvoiceItem[], enableRot: boolean): InvoiceItem[] {
-  if (!enableRot) return items;
   return items.map((item) => {
+    if (isNonLaborItem(item)) {
+      return { ...item, isRotRut: false };
+    }
+    if (!enableRot) {
+      return { ...item, isRotRut: false };
+    }
     if (isRotEligibleLabor(item)) {
       return { ...item, isRotRut: true };
-    }
-    // Keep non-labor flags false for safety on material/service lines
-    if (
-      item.type === 'item' &&
-      /material|beijer|servicebil|miler|framkör|förbruk/.test(
-        `${item.description || ''} ${item.subDescription || ''}`.toLowerCase()
-      )
-    ) {
-      return { ...item, isRotRut: false };
     }
     return item;
   });

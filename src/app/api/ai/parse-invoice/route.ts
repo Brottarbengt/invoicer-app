@@ -233,15 +233,14 @@ ${prompt}
       });
     }
 
-    // Smart Fallback Parser if Ollama isn't responding
-    const fallbackParsed = smartSwedishInvoiceParser(prompt, attachedText, currentInvoice);
-    return NextResponse.json({
-      success: true,
-      source: 'smart-parser',
-      model: 'Lokal regelmotor',
-      durationMs,
-      data: fallbackParsed,
-    });
+    // If Ollama is offline or did not return a valid response, return offline error (no fallback)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'AI är offline. Kontrollera att Ollama körs på din dator.',
+      },
+      { status: 503 }
+    );
   } catch (error: any) {
     console.error('Error in parse-invoice API:', error);
     return NextResponse.json(
@@ -254,154 +253,4 @@ ${prompt}
 function currentRecipientSummary(inv: InvoiceData): string {
   if (!inv.recipient) return 'Ingen';
   return `${inv.recipient.name || 'Kund'} (Fastighet: ${inv.recipient.propertyDesignation || '—'}, Adress: ${inv.recipient.address || '—'})`;
-}
-
-// Fallback logic if Ollama is offline
-function smartSwedishInvoiceParser(prompt: string, attachedText: string | undefined, currentInvoice: InvoiceData) {
-  const p = prompt.toLowerCase();
-  let items = [...(currentInvoice.items || [])];
-
-  // Check customer
-  let customerName: string | null = null;
-  const custMatch = prompt.match(/(?:med|till|för)\s+([A-ZÅÄÖ][a-zåäö]+(?:\s+[A-ZÅÄÖ][a-zåäö]+)?)/);
-  if (custMatch) {
-    customerName = custMatch[1];
-  }
-
-  // Check project title
-  let projectTitle = currentInvoice.projectTitle || 'Snickeritjänster';
-  const projMatch = prompt.match(/projektnamn\s+([A-Za-zåäöÅÄÖ0-9: ]+)/i);
-  if (projMatch) {
-    projectTitle = projMatch[1].trim();
-  } else if (p.includes('kamin')) {
-    projectTitle = 'Kaminmontering';
-  } else if (p.includes('dörrbyte')) {
-    projectTitle = 'Dörrbyte';
-  } else if (p.includes('fönsterrenovering')) {
-    projectTitle = 'Fönsterrenovering';
-  }
-
-  // Check removal instructions
-  if (p.includes('ta bort') || p.includes('radera')) {
-    if (p.includes('nils')) {
-      items = items.filter((it) => !it.description.toLowerCase().includes('nils'));
-    }
-    if (p.includes('miler')) {
-      items = items.filter((it) => !it.description.toLowerCase().includes('miler'));
-    }
-    if (p.includes('servicebil')) {
-      items = items.filter((it) => !it.description.toLowerCase().includes('servicebil'));
-    }
-    if (p.includes('förbrukning')) {
-      items = items.filter((it) => !it.description.toLowerCase().includes('förbrukning'));
-    }
-    if (p.includes('material')) {
-      items = items.filter((it) => !it.description.toLowerCase().includes('material'));
-    }
-  }
-
-  // Check hours
-  const hoursMatch = p.match(/(\d+[\.,]?\d*)\s*(?:arbetstimmar|snickartimmar|timmar|h|tim)/i);
-  if (hoursMatch) {
-    const hours = parseFloat(hoursMatch[1].replace(',', '.'));
-    const existingIndex = items.findIndex((it) => it.isRotRut || it.description.toLowerCase().includes('snicker'));
-    if (existingIndex >= 0) {
-      items[existingIndex].quantity = hours;
-      items[existingIndex].unit = 'tim';
-      items[existingIndex].unitPrice = 550;
-    } else {
-      items.unshift({
-        id: `item-${Date.now()}`,
-        type: 'item',
-        articleNumber: '',
-        description: 'Snickeriarbete',
-        subDescription: projectTitle,
-        quantity: hours,
-        unit: 'tim',
-        unitPrice: 550,
-        vatRate: 25,
-        isRotRut: true,
-      });
-    }
-  }
-
-  // Check Servicebil
-  if (p.includes('servicebil')) {
-    const servMatch = p.match(/servicebil[^\d]*(\d+)\s*(?:kr)?/i);
-    const servPrice = servMatch ? parseFloat(servMatch[1]) : 500;
-    const existingIndex = items.findIndex((it) => it.description.toLowerCase().includes('servicebil'));
-    if (existingIndex >= 0) {
-      items[existingIndex].unitPrice = servPrice;
-    } else {
-      items.push({
-        id: `item-serv-${Date.now()}`,
-        type: 'item',
-        articleNumber: '',
-        description: 'Servicebil',
-        subDescription: '',
-        quantity: 1,
-        unit: 'st',
-        unitPrice: servPrice,
-        vatRate: 25,
-        isRotRut: false,
-      });
-    }
-  }
-
-  // Check attached Beijer material
-  if (attachedText && (attachedText.includes('BEIJER') || attachedText.includes('SPIK'))) {
-    // If kniv should be excluded
-    const excludeKnife = p.includes('kniv') || p.includes('kniven');
-    let matSum = 413.22;
-    if (excludeKnife) {
-      matSum = 341.94;
-    }
-    const existingIndex = items.findIndex((it) => it.description.toLowerCase().includes('material'));
-    if (existingIndex >= 0) {
-      items[existingIndex].unitPrice = matSum;
-    } else {
-      items.push({
-        id: `item-mat-${Date.now()}`,
-        type: 'item',
-        articleNumber: '',
-        description: 'Material: Beijer Bygg',
-        subDescription: excludeKnife ? 'Spik m.m. (exkl. kniv)' : 'Inköpt material',
-        quantity: 1,
-        unit: 'st',
-        unitPrice: matSum,
-        vatRate: 25,
-        isRotRut: false,
-      });
-    }
-  }
-
-  const enableRot = p.includes('rot') || currentInvoice.enableRot;
-
-  // Invoice number change: "ändra till 6002", "fakturanummer 6002", "OCR 6002"
-  let invoiceNumber: string | null = null;
-  const invoiceNumberMatch =
-    prompt.match(
-      /(?:fakturanummer|faktura\s*nr\.?|faktura\s*nummer|ocr\s*\/?\s*referens|ocr|referens)[^\d]{0,20}(\d{3,})/i
-    ) || prompt.match(/(?:ändra|sätt|byt).*?(?:till|=)\s*(\d{3,})/i);
-  if (invoiceNumberMatch) {
-    invoiceNumber = invoiceNumberMatch[1];
-  }
-
-  const normalizedItems = applyRotFlagsToItems(
-    convertInclusiveVatPricesFromPrompt(prompt, items),
-    enableRot
-  );
-
-  return {
-    customerName,
-    invoiceNumber,
-    projectTitle,
-    projectDates: currentInvoice.projectDates || `Utförda ${new Date().toISOString().split('T')[0]}`,
-    enableRot,
-    rotPercent: 30,
-    items: normalizedItems,
-    summaryMessage: invoiceNumber
-      ? `Uppdaterade fakturanummer till ${invoiceNumber}. ${normalizedItems.length} poster finns nu på fakturan.`
-      : `Uppdaterade fakturan: ${normalizedItems.length} poster finns nu på fakturan.`,
-  };
 }
